@@ -11,3 +11,6 @@ mysql_password="0$w8h#8#Q1N)N3B!3&3P"
 mysql_database="astaBot"
 
 #CORREOS
+
+email="astabotia@gmail.com"
+passw="mbqwlkitzndhczfg"
