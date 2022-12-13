@@ -1,6 +1,6 @@
 import ENV_VARs as TOKEN
 import logging
-import funct
+import FUNCTIONS_LIB
 from telegram import __version__ as TG_VER, InlineKeyboardButton, InlineKeyboardMarkup
 
 try:

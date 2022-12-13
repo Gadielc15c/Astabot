@@ -3,8 +3,7 @@ import logging
 import DB_CONN
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply
-
-import funct
+import FUNCTIONS_LIB
 
 try:
     from telegram import __version_info__
@@ -32,12 +31,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 START_ROUTES, END_ROUTES, SIGNUP_ROUT = range(3)
-COMPRA, BUTTON_HANDLER, SIGNUP, THREE, FOUR, TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM = range(9)
-
+COMPRA, BUTTON_HANDLER, SIGNUP, THREE, FOUR, TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN = range(10)
 username_var = "user_data1"
 email_var = "user_mail"
 pass_var = "user_pass"
-ver_code="Vercode"
+ver_code = "Vercode"
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
@@ -116,8 +115,8 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    DATA = await funct.return_msg(update)
-    username = funct.userNameProcesor(DATA)  # RECIBO EL USER NAME Y LO LIMPIO
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    username = await FUNCTIONS_LIB.userNameProcesor(DATA)  # RECIBO EL USER NAME Y LO LIMPIO
     if username:
         context.user_data[username_var] = username
         await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREOA\n')
@@ -133,8 +132,8 @@ async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def emailread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    DATA = await funct.return_msg(update)
-    emailVer = funct.emailValid(DATA)
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    emailVer = await FUNCTIONS_LIB.emailValid(DATA)
     if emailVer:
         context.user_data[email_var] = DATA
         await context.bot.send_message(chat_id=update.effective_chat.id, text='Porfavor Inserte una Contraseña\n')
@@ -147,17 +146,16 @@ async def emailread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    DATA = await funct.return_msg(update)
-    PassValidate = funct.passValidation(DATA)
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    PassValidate = await FUNCTIONS_LIB.passValidation(DATA)
     if PassValidate:
         username = context.user_data[username_var]
         email = context.user_data[email_var]
         context.user_data[pass_var] = DATA
-        VerCode=funct.randomVercode()
-        context.user_data[ver_code]=VerCode
-        msg=funct.CrearCuadro(VerCode)
+        VerCode = await FUNCTIONS_LIB.randomVercode()
+        context.user_data[ver_code] = VerCode
         DB_CONN.execute_sql(f'INSERT INTO user (username,email,pass) VALUES ("{username}","{email}","{DATA}")')
-        await funct.sendHtmlMail(email,"asunto",msg)
+        await FUNCTIONS_LIB.sendHtmlMail(email, VerCode)
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='😍👁️ GENIAL SU CUENTA SE HA CREADO CON EXITO! \n'
                                             ' ENVIAMOS UN CORREO A TU EMAIL PARA QUE VERIFIQUES TU CUENTA 👍🏿')
@@ -175,15 +173,20 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def emailConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    DATA = await funct.return_msg(update)
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    verc = context.user_data[ver_code]
 
+    if DATA == verc:
+        # TODO: CREAR ESTADO PARA CUENTAS VALIDADASYa esta validad
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='🎉🍾🎊FELICIDADES!!🎉🍾🎊\n Su cuenta se ha verificado con Exito')
+        return 1
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='EL CODIGO NO HA SIDO VERIFICADO CORRECTAMENTE, PORFAVOR VUELVA A '
+                                            'INTENTARLO MMG\n')
+        return EMAIL_CONFIRM
 
-    #if True:
-   #     return "Otra ruta"
-    #else:
-     #  await context.bot.send_message(chat_id=update.effective_chat.id,
-       #                                text='EL CODIGO NO HA SIDO VERIFICADO CORRECTAMENTE, PORFAVOR VUELVA A INTENTARLO MMG\n')
-      #  return EMAIL_CONFIRM
 
 async def three(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show new choice of buttons. This is the end point of the conversation."""
@@ -263,6 +266,9 @@ def main() -> None:
                 MessageHandler(filters.TEXT & (~filters.COMMAND), passreadl),
             ],
             EMAIL_CONFIRM: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
+            ],
+            LOGIN: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
             ],
             END_ROUTES: [
