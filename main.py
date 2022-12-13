@@ -1,7 +1,6 @@
 import logging
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply
-
 try:
     from telegram import __version_info__
 except ImportError:
@@ -27,29 +26,33 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+#-----------------------------------------------------------------------------------------------------------------------
 
 # Stages
 START_ROUTES, END_ROUTES, SINGUP_ROUT = range(3)
 # Callback data
 COMPRA, BUTTON_HANDLER, SINGUP, THREE, FOUR, TEMP_TEXTO = range(6)
-
+#0          1              2       3       4        5
+#-----------------------------------------------------------------------------------------------------------------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
-    # Get user that sent /start and log his name
     user = update.message.from_user
     saludo = "Hola " + user.first_name + " Bienvenido"
     logger.info("User %s started the conversation.", user.first_name)
+
     keyboard = [
         [
             InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
             InlineKeyboardButton("SALIR", callback_data=str(THREE)),
         ],
+
         [InlineKeyboardButton("SIN PROGRAMAR", callback_data=str(BUTTON_HANDLER)),
-            ],
+         ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(saludo, reply_markup=reply_markup)
+
     return START_ROUTES
 
 
@@ -78,7 +81,6 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def Compra(update: Update, context: CallbackContext) -> int:
-    """Show new choice of buttons"""
     query = update.callback_query
     await query.answer()
 
@@ -100,31 +102,31 @@ async def Compra(update: Update, context: CallbackContext) -> int:
     return START_ROUTES
 
 
-async def button_click_handler(update: Update, context: CallbackContext) -> int:
+async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     # shows a small notification inside chat
-    await  query.answer(f'button click {query.data} recieved')
+    await  query.answer(f'Entendido {query.data} Crearemos tu cuenta')
 
     if query.data == str(BUTTON_HANDLER):
         await query.edit_message_text(f'BIEN CREEEMOS SU CUENTA')
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='PORFA INGRESE UN NOMBRE DE USUARIO, UN CORREO Y UNA CONTRASEÑA\n '
-                                            'Todo separado con comas')
+        await context.bot.send_message(chat_id=update.effective_chat.id,text='PORFA INGRESE UN NOMBRE DE USUARIO\n ')
         # await singUp(update, context)
     return TEMP_TEXTO
 
 
-async def singUp(update: Update, context: CallbackContext) -> int:
+async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     ''' The user's reply to the name prompt comes here  '''
-    print("toto")
     query = update.callback_query
-    await  query.answer(f'button click {query.data} recieved')
+    # querydata = query.data
+    # context.user_data["key"] = querydata
+    # logger.info(querydata)
+    print(query)
 
-    if query.data == str(BUTTON_HANDLER):
-        await query.edit_message_text(f'BIEN CREEEMOS SU CUENTA')
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='PORFA INGRESE UN NOMBRE DE USUARIO, UN CORREO Y UNA CONTRASEÑA\n '
-                                            'Todo separado con comas', reply_markup=ForceReply())
+    # if query.data == str(BUTTON_HANDLER):
+    await update.callback_query.message.edit_text(f'BIEN CREEEMOS SU CUENTA')
+    # await query.edit_message_text
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='PORFA INGRESE UN CORREOA\n', reply_markup=ForceReply())
     # DATA = update.message.text
     # saves the name
     # context.user_data[str(BUTTON_HANDLER)] = DATA
@@ -132,7 +134,26 @@ async def singUp(update: Update, context: CallbackContext) -> int:
     # await update.message.reply_text(f'Your name is saved as {DATA[:100]}')
 
     # ends this particular conversation flow
-    return SINGUP_ROUT
+    return TEMP_TEXTO
+
+
+async def passread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    ''' The user's reply to the name prompt comes here  '''
+    print("tototico")
+    query = update.callback_query
+    print(query)
+    if query.data == str(BUTTON_HANDLER):
+        await query.edit_message_text(f'BIEN CREEEMOS SU CUENTA')
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='PORFA INGRESE  UNA CONTRASEÑA\n', reply_markup=ForceReply())
+    # DATA = update.message.text
+    # saves the name
+    # context.user_data[str(BUTTON_HANDLER)] = DATA
+    # await context.message.reply_text(f'Your name is saved as ')
+    # await update.message.reply_text(f'Your name is saved as {DATA[:100]}')
+
+    # ends this particular conversation flow
+    return TEMP_TEXTO
 
 
 async def three(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -191,6 +212,8 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TOKEN.CONN_TOKEN).build()
     conv_handler = ConversationHandler(
+#--------------------------------------------------------------------------------------------------------------
+
         entry_points=[CommandHandler("start", start)],
         states={
             START_ROUTES: [
@@ -201,11 +224,12 @@ def main() -> None:
             ],
 
             SINGUP_ROUT: [
-                CallbackQueryHandler(singUp, pattern="^" + str(SINGUP) + "$"),
-
+                CallbackQueryHandler(passread, pattern="^" + str(SINGUP) + "$"),
             ],
+
             TEMP_TEXTO: [
-                MessageHandler(filters.TEXT, singUp)
+                MessageHandler(filters.TEXT & (~filters.COMMAND), singUp),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), passread),
             ],
 
             END_ROUTES: [

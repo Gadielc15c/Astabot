@@ -23,7 +23,7 @@ def open_connection():
 
     return mydb, cursor
 
-
+#ejecuta delete
 def execute_sql(sql_string):
     mydb, cursor = open_connection()
     cursor.execute(sql_string)
