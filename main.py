@@ -158,7 +158,7 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await FUNCTIONS_LIB.sendHtmlMail(email, VerCode)
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='😍👁️ GENIAL SU CUENTA SE HA CREADO CON EXITO! \n'
-                                            ' ENVIAMOS UN CORREO A TU EMAIL PARA QUE VERIFIQUES TU CUENTA 👍🏿')
+                                            ' ENVIAMOS UN CORREO A TU EMAIL PARA QUE VERIFIQUES TU CUENTA \n AVECES EL CORREO PUEDE APARECER EN SPAM👍🏿')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='DIGITE SU NUMERO DE CONFIRM \n')
         return EMAIL_CONFIRM
