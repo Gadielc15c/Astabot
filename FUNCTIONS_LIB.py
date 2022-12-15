@@ -88,7 +88,32 @@ async def passValidation(passW):
     return False
 
 
-def CrearCuadro(Vercode:str):
+async def geo_distance(lon1, lat1, lon2, lat2):
+    """
+        Parametros: lon1: float con las coordenadas de longitud del local
+                    lat1: float con las coordenadas de latitud del local
+                    lon2: float con las coordenadas de longitud de la ubicacion introducida por el usuario
+                    lat2: float con las coordenadas de latitud de la ubicacion introducida por el usuario
+
+        Descripcion: calcula la distancia entre 2 puntos de la tierra por medio de la formula de haversine
+
+        Return: la distancia en kilometros (float)
+    """
+    from math import radians, cos, sin, asin, sqrt
+
+    # convertir decimales a radianes
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # formula de haversine
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Radio de la tierra en kilometros
+    return c * r
+
+
+def CrearCuadro(Vercode: str):
     msg = """<!DOCTYPE html>
 <html>
 <head>
@@ -294,7 +319,14 @@ async def sendmail(to: str, subject: str, msg, msg2):
     return
 
 
-async def sendHtmlMail(to: str, msg2:str):
+async def sendHtmlMail(to: str, msg2: str):
+    """
+
+    :param to:
+    :param msg2:
+    :return:
+    """
+
     message = MIMEMultipart("alternative")
     user = ENV_VARs.email
     passW = ENV_VARs.passw
@@ -322,6 +354,7 @@ async def sendHtmlMail(to: str, msg2:str):
         server.sendmail(
             user, to, message.as_string()
         )
+
 
 async def randomVercode():
     # With combination of lower and upper case

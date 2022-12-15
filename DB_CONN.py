@@ -37,7 +37,11 @@ def execute_select(sql_select):
     cursor.execute(sql_select)
     list_ = cursor.fetchall()
     cursor.close()
-    return list_
+
+    if len(list_) > 0:
+        return list_
+
+    return []
 
 
 if __name__ == "__main__":
