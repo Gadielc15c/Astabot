@@ -2,7 +2,8 @@ import logging
 
 import DB_CONN
 import ENV_VARs as TOKEN
-from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply
+from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply, ReplyKeyboardMarkup, KeyboardButton, \
+    WebAppInfo
 import FUNCTIONS_LIB
 
 try:
@@ -30,31 +31,42 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-START_ROUTES, END_ROUTES, SIGNUP_ROUT = range(3)
-COMPRA, BUTTON_HANDLER, SIGNUP, THREE, FOUR, TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN = range(10)
+START_ROUTES, SIGNUP_ROUT = range(2)
+
+STORE_START = range(1)
+COMPRA, BUTTON_HANDLER, END_ROUTES,SIGNUP, THREE, FOUR, \
+    TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
+    LOGIN_PASS, LOGIN_CONFIRM = range(13)
+
 username_var = "user_data1"
 email_var = "user_mail"
 pass_var = "user_pass"
 ver_code = "Vercode"
 
+username_login = "login_username"
+username_pass = "login_pass"
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
     user = update.message.from_user
-    saludo = "Hola " + user.first_name + " Bienvenido"
     logger.info("User %s started the conversation.", user.first_name)
 
     keyboard = [
         [
-            InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-            InlineKeyboardButton("SALIR", callback_data=str(THREE)),
+            InlineKeyboardButton("INICIAR SESION 🔐", callback_data=str(LOGIN)),
+            InlineKeyboardButton("SALIR 🏳️‍🌈", callback_data=str(END_ROUTES)),
         ],
 
         [InlineKeyboardButton("Crear Cuenta", callback_data=str(BUTTON_HANDLER)),
          ],
+
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(saludo, reply_markup=reply_markup)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='\n\t HOLAAAAA!!')
+
+    await update.message.reply_text("\nSoy AstaBot 🤖\n¿En que Te Puedo Ayudar? 🤔",
+                                    reply_markup=reply_markup)
 
     return START_ROUTES
 
@@ -116,18 +128,18 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
-    username = await FUNCTIONS_LIB.userNameProcesor(DATA)  # RECIBO EL USER NAME Y LO LIMPIO
-    if username:
-        context.user_data[username_var] = username
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREOA\n')
+    status, msg, Username = await FUNCTIONS_LIB.userNameProcesor(DATA)
+
+    # exists = DB_CONN.execute_select(f'SELECT EXISTS (SELECT username FROM user WHERE username = "{username}")')  # Devuelve bool 1: Existe, 0: No Existe
+    # if not exists:
+    if status:
+        context.user_data[username_var] = Username
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREO\n')
         return TEMP_MAIL
 
     else:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='⚠️ NOMBRE DE USUARIO INCORECTO ⚠️\n '
-                                                                              'Verifique que Su Nombre tenga dentro de'
-                                                                              ' 3 y 10 Caracteres')
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=' PORFA INGRESE UN NOMBRE DE USUARIO VALIDO   \n ')
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Inserte El Nombre De Usuario")
         return TEMP_USER
 
 
@@ -140,7 +152,6 @@ async def emailread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return TEMP_PASS
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text='⚠️CORREO INVALIDO⚠️\n ')
-
         await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREO VÁLIDO\n ')
         return TEMP_MAIL
 
@@ -175,54 +186,81 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def emailConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
     verc = context.user_data[ver_code]
-
     if DATA == verc:
-        # TODO: CREAR ESTADO PARA CUENTAS VALIDADASYa esta validad
+        username = context.user_data[username_var]
+        DB_CONN.execute_sql(f'UPDATE user SET state=1 WHERE username="{username}"')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='🎉🍾🎊FELICIDADES!!🎉🍾🎊\n Su cuenta se ha verificado con Exito')
-        return 1
+        return LOGIN
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='EL CODIGO NO HA SIDO VERIFICADO CORRECTAMENTE, PORFAVOR VUELVA A '
-                                            'INTENTARLO MMG\n')
+                                            'INTENTARLO\n')
         return EMAIL_CONFIRM
 
 
-async def three(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Show new choice of buttons. This is the end point of the conversation."""
-    query = update.callback_query
-    await query.answer()
-    keyboard = [
-        [
-            InlineKeyboardButton("No, Reanudemos", callback_data=str(COMPRA)),
-            InlineKeyboardButton("SI XD que cansando es.", callback_data=str(BUTTON_HANDLER)),
+async def Login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='🤖 |LOGIN| \n Porfavor Digite su Nombre de Usuario')
+
+    return LOGIN_PASS
+
+    # var = DB_CONN.execute_select(f'SELECT * FROM user WHERE iduser = 5432523452345')
+
+
+async def LoginPass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    print(DATA)
+    context.user_data[username_login] = DATA
+
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='🤖 |LOGIN| \n Porfavor Digite su Contraseña')
+    return LOGIN_CONFIRM
+
+
+async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    context.user_data[username_pass] = DATA
+    UserLogin = context.user_data[username_login]
+    login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
+    if login:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='🤖 |TIENDA| \n')
+        """Send message on `/start`."""
+        user = update.message.from_user
+        # saludo = "Hola " + user.first_name + " Bienvenido"
+        logger.info("User %s Entró a la tienda", user.first_name)
+
+        keyboard = [
+            [
+                InlineKeyboardButton("Comprar", callback_data=str(STORE_START)),
+            ], [
+                InlineKeyboardButton("Historico de Pedidos", callback_data=str(THREE)),
+
+            ],
+
+            [InlineKeyboardButton("Salir", callback_data=str(END_ROUTES)),
+             ],
         ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text="SEGURO QUE QUIERES CERRAR LA SESION?", reply_markup=reply_markup
-    )
-    # Transfer to conversation state `SECOND`
-    return END_ROUTES
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='🤖 ENTRE!\n',
+                                       reply_markup=reply_markup)
+
+        return STORE_START
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='🤖 |LOGIN| Y ESA BASURA XDDDD\n')
+
+    return LOGIN
 
 
-async def four(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Show new choice of buttons"""
-    query = update.callback_query
-    await query.answer()
+async def storeStart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    context.user_data[username_pass] = DATA
 
-    keyboard = [
-        [
-            InlineKeyboardButton("2", callback_data=str(BUTTON_HANDLER)),
-            InlineKeyboardButton("3", callback_data=str(THREE)),
-            InlineKeyboardButton("SEXO", callback_data=str(BUTTON_HANDLER)),
-        ]
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(
-        text="Fourth CallbackQueryHandler, Choose a route", reply_markup=reply_markup
-    )
     return START_ROUTES
 
 
@@ -235,24 +273,27 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     print(query.data)
     if query.data == COMPRA:
         pass
-    await query.edit_message_text(text="Sa mmg")
+    await query.edit_message_text(text="Lo suponia...🤨 🏳️‍🌈🏳️‍🌈👁")
     return ConversationHandler.END
 
 
 def main() -> None:
     """Run the bot."""
-    # Create the Application and pass it your bot's token.
     application = Application.builder().token(TOKEN.CONN_TOKEN).build()
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             START_ROUTES: [
-                CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
+                CallbackQueryHandler(Login, pattern="^" + str(LOGIN) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
-                CallbackQueryHandler(three, pattern="^" + str(THREE) + "$"),
-                CallbackQueryHandler(four, pattern="^" + str(FOUR) + "$"),
-            ],
+                CallbackQueryHandler(end, pattern="^" + str(END_ROUTES) + "$"),
 
+            ],
+            STORE_START: [
+                CallbackQueryHandler(storeStart, pattern="^" + str(STORE_START) + "$"),
+                CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
+
+            ],
             SIGNUP_ROUT: [
                 CallbackQueryHandler(emailread, pattern="^" + str(SIGNUP) + "$"),
             ],
@@ -269,12 +310,15 @@ def main() -> None:
                 MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
             ],
             LOGIN: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), Login),
             ],
-            END_ROUTES: [
-                CallbackQueryHandler(start_over, pattern="^" + str(COMPRA) + "$"),
-                CallbackQueryHandler(end, pattern="^" + str(BUTTON_HANDLER) + "$"),
+            LOGIN_PASS: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginPass),
             ],
+            LOGIN_CONFIRM: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
+            ],
+
         },
         fallbacks=[CommandHandler("start", start)],
     )
@@ -287,4 +331,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "s" AND pass ="1"')
+    for estado in login:
+        variable = estado[4]
+
+    print(variable)
+
+   # main()

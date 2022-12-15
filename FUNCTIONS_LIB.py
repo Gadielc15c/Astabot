@@ -24,15 +24,29 @@ logger = logging.getLogger(__name__)
 
 
 async def userNameProcesor(userN):
-    sizeOfName = len(userN)
-    # TODO: MAKE DB SELECT QUERY TO GET DATA IN ORDER TO KNOW IF ITS ALREADY THERE
+    """
+    :param userN: param that includes non formatted username
+    :return - Username: Formated Username (String)
+    :return - msg: Returns message With Warnings (String)
+    :return - State: Returns State (String)
 
-    if 3 <= sizeOfName <= 10:
-        UserName = SpaceRemover(userN)
-        return UserName
+    """
+    UserName = SpaceRemover(userN)
+    msg = "⚠️ NOMBRE DE USUARIO INCORECTO ⚠️"
+
+    if 3 <= len(UserName) <= 10:
+        exists = DB_CONN.execute_select(f'SELECT username FROM user WHERE username = "{UserName}"')
+
+        if not exists:
+            return True, "", UserName
+
+        msg = "El Usuario existe Y no puede ser creado"
+    else:
+        msg += '\n Verifique que Su Nombre tenga dentro de 3 y 10 Caracteres'
+
+    return False, msg, UserName
 
     return False
-
 
 def SpaceRemover(DATA):
     return "".join([i for i in DATA.split(" ") if i])
@@ -48,19 +62,21 @@ async def return_msg(update: Update):
 
 
 async def emailValid(mail):
-    # TODO: MAKE DB SELECT QUERY TO GET DATA IN ORDER TO KNOW IF ITS ALREADY THERE
+    """
+    :param mail: REVIEVES EMAIL
+    :return: EMAIL IF VALID OR BOOL FALSE IF NOT
+    """
 
-    # Function thtat recieves an email and sees if is valid or not
-    # @PARAM
-    # EMAIL REVIEVES EMAIL
-    # @RETUNS
-    # RETURNS EMAIL IF VALID OR BOOL FALSE IF NOT
+
     spacelessEmail = SpaceRemover(mail)
     regex = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
-
     if re.fullmatch(regex, spacelessEmail):
-        print('Correo Valido')
-        return spacelessEmail
+        exists = DB_CONN.execute_select(
+            f'SELECT email FROM user WHERE email= "{spacelessEmail}"')
+        if not exists:
+            print('Correo Valido')
+            return spacelessEmail
+
     return False
 
 
@@ -215,7 +231,7 @@ def CrearCuadro(Vercode:str):
                       <td bgcolor="#ffffff" align="center" style="padding: 20px 30px 60px 30px;">
                         <table border="0" cellspacing="0" cellpadding="0">
                           <tr>
-                              <td align="center" style="border-radius: 3px;" bgcolor="#000000"><a href="https://youtu.be/LysXEC5cWl0?t=28" target="_blank" style="font-size: 20px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; color: #ffffff; text-decoration: none; padding: 15px 25px; border-radius: 2px; border: 1px solid #000000; display: inline-block;">"""+Vercode+"""</a></td>
+                              <td align="center" style="border-radius: 3px;" bgcolor="#000000"><a href="https://youtu.be/LysXEC5cWl0?t=28" target="_blank" style="font-size: 20px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; color: #ffffff; text-decoration: none; padding: 15px 25px; border-radius: 2px; border: 1px solid #000000; display: inline-block;">""" + Vercode + """</a></td>
                           </tr>
                         </table>
                       </td>
@@ -306,7 +322,6 @@ async def sendHtmlMail(to: str, msg2:str):
         server.sendmail(
             user, to, message.as_string()
         )
-
 
 async def randomVercode():
     # With combination of lower and upper case
