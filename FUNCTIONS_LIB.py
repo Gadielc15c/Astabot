@@ -5,6 +5,7 @@ import random
 import ssl
 import string
 import telegram
+import DB_CONN
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -46,7 +47,6 @@ async def userNameProcesor(userN):
 
     return False, msg, UserName
 
-    return False
 
 def SpaceRemover(DATA):
     return "".join([i for i in DATA.split(" ") if i])
