@@ -33,18 +33,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 START_ROUTES, SIGNUP_ROUT = range(2)
 
-STORE_START = range(1)
+STORE_START,DETALLE= range(2)
 COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, FOUR, \
     TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
     LOGIN_PASS, LOGIN_CONFIRM = range(13)
 
+# VARS FOR SIGN UP ROUTS
 username_var = "user_data1"
 email_var = "user_mail"
 pass_var = "user_pass"
 ver_code = "Vercode"
 
+# VARS FOR LOGIN
 username_login = "login_username"
 username_pass = "login_pass"
+
+# VARS FOR PRODUCT HANDLE
+productud = "product_id"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -96,10 +101,39 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def Compra(update: Update, context: CallbackContext) -> int:
-    imgUrl='https://m.media-amazon.com/images/I/7156DLyUsYL.__AC_SY300_SX300_QL70_FMwebp_.jpg'
-    prodctname = 'RTX 3060'
-    await context.bot.send_message(chat_id=update.effective_chat.id,text=f'ARTICULO: {prodctname}')
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=imgUrl)
+
+    productotry = DB_CONN.execute_select("SELECT * FROM products")
+    print(productotry[1])
+
+    for items in productotry:
+     await  detallador(context, items, update)
+
+
+async def detallador(context, detalle, update):
+    context.user_data[productud]=detalle[0]
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
+    keyboard = [
+        [
+            InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+            InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
+        ],
+
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
+                                   reply_markup=reply_markup)
+    return STORE_START
+
+async def descripcion(update: Update, context: CallbackContext):
+    context.user_data[productud]=detalle[0]
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
     keyboard = [
         [
             InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
@@ -109,10 +143,9 @@ async def Compra(update: Update, context: CallbackContext) -> int:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text='🤖 ENTRE!\n',
+                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
                                    reply_markup=reply_markup)
     return START_ROUTES
-
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -250,7 +283,6 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
             return STORE_START
         elif variable == "4":
-            print("mamaguevo")
             await context.bot.send_message(chat_id=update.effective_chat.id,
                                            text='🤖 |ADMIN| \n')
             """Send message on `/start`."""
@@ -322,6 +354,7 @@ def main() -> None:
             ],
             STORE_START: [
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
+                CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
 
             ],
@@ -362,10 +395,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "s" AND pass ="1"')
-    # for estado in login:
-    #     variable = estado[4]
+    # productotry = [(1, "RTX 3060", 350.00,
+    #                 "https://m.media-amazon.com/images/I/7156DLyUsYL.__AC_SY300_SX300_QL70_FMwebp_.jpg",
+    #                 "TARJETA DE VIDEO POTENTE 6 GB", 12, 0), (
+    #                    1, "RTX 3070", 350.00, "https://m.media-amazon.com/images/I/71XcVOdHX+S._AC_UY218_.jpg",
+    #                    "TARJETA DE VIDEO POTENTE 6 GB", 12, 0)]
     #
-    # print(variable)
+    #
+    # array = ['a', 'b']
+    #
 
+    # #for detalle in productotry:
     main()
