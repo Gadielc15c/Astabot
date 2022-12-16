@@ -1,5 +1,4 @@
 import logging
-
 import DB_CONN
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply, ReplyKeyboardMarkup, KeyboardButton, \
@@ -31,12 +30,13 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-START_ROUTES, SIGNUP_ROUT = range(2)
+START_ROUTES = range(1)
 
-STORE_START,DETALLE= range(2)
+STORE_START, DETALLE,UPDATE_PRODUCTS = range(3)
 COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, FOUR, \
     TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
-    LOGIN_PASS, LOGIN_CONFIRM = range(13)
+    LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT,PRODUCT,PRICE_PRODUCT,STOCK_PRODUCT,U_NAME,U_STOCK\
+    ,U_CATEGORY,U_DESCRIPTION,U_PRICE,U_IMG= range(23)
 
 # VARS FOR SIGN UP ROUTS
 username_var = "user_data1"
@@ -50,7 +50,10 @@ username_pass = "login_pass"
 
 # VARS FOR PRODUCT HANDLE
 productud = "product_id"
-
+product_name="product"
+product_price=0.00
+product_img=""
+var_up=""
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
@@ -101,16 +104,23 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def Compra(update: Update, context: CallbackContext) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    status, msg, Username = await FUNCTIONS_LIB.userNameProcesor(DATA)
+    a=DB_CONN.execute_select('SELECT * FROM products')
+    msg=FUNCTIONS_LIB.ProductsListProcessor(a)
+    if status:
+        context.user_data[username_var] = Username
+        await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREO\n')
+        return TEMP_MAIL
 
-    productotry = DB_CONN.execute_select("SELECT * FROM products")
-    print(productotry[1])
-
-    for items in productotry:
-     await  detallador(context, items, update)
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Inserte El Nombre De Usuario")
+        return TEMP_USER
 
 
 async def detallador(context, detalle, update):
-    context.user_data[productud]=detalle[0]
+    context.user_data[productud] = detalle[0]
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
     await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
@@ -128,24 +138,29 @@ async def detallador(context, detalle, update):
                                    reply_markup=reply_markup)
     return STORE_START
 
+
 async def descripcion(update: Update, context: CallbackContext):
-    context.user_data[productud]=detalle[0]
+    id = context.user_data[productud]
+    product = DB_CONN.execute_select(f"SELECT * FROM products where idproducts= '{id}'")
+    for detalle in product:
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
-    keyboard = [
-        [
-            InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-            InlineKeyboardButton("Ver Detalles", callback_data=str(THREE))
-        ],
 
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
-                                   reply_markup=reply_markup)
-    return START_ROUTES
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
+        keyboard = [
+            [
+                InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+                InlineKeyboardButton("Ver Detalles", callback_data=str(THREE))
+            ],
+
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=f'🤖ID ARTICULO: {detalle[0]}\n',
+                                       reply_markup=reply_markup)
+        return START_ROUTES
+
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -238,26 +253,105 @@ async def Login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def LoginPass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
-    print(DATA)
     context.user_data[username_login] = DATA
 
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text='🤖 |LOGIN| \n Porfavor Digite su Contraseña')
     return LOGIN_CONFIRM
 
+async def InsertProduct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id,text="Introduce el nombre del producto, miamor")
+    return PRODUCT
+async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA= await FUNCTIONS_LIB.return_msg(update)
+    #print("El producto elegido es ",DATA)
+    context.user_data[product_name]=DATA
+    exists=DB_CONN.execute_select(f'SELECT nameproducts FROM products WHERE nameproducts="{DATA}"')
+    if exists:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="El producto que introdujo ya existe, Que desea Actualizar?")
+        keyboard = [
+            [
+                InlineKeyboardButton("NOMBRE", callback_data=str(U_NAME)),
+            ], [
+                InlineKeyboardButton("DESCRIPCION", callback_data=str(U_DESCRIPTION)),
+
+            ],
+            [
+                InlineKeyboardButton("PRECIO", callback_data=str(U_PRICE)),
+
+            ],
+            [
+                InlineKeyboardButton("IMAGEN", callback_data=str(U_IMG)),
+
+            ],
+            [
+                InlineKeyboardButton("CATEGORIA", callback_data=str(U_CATEGORY)),
+
+            ],
+            [InlineKeyboardButton("NADA, GRACIAS.", callback_data=str(END_ROUTES)),
+             ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='ELIGE UNA OPCION!\n',
+                                       reply_markup=reply_markup)
+        return UPDATE_PRODUCTS
+    else:
+        #Pedimos descripcion, precio, imagen etc.
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Crearemos un producto nuevo...preparate")
+
+    return THREE
+async def UpdateName(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Introduce el nuevo nombre del producto.")
+    context.user_data[var_up]=context.user_data[product_name]
+    return U_NAME
+
+async def UpdateNConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+
+    if DATA:
+        DB_CONN.execute_sql(f'UPDATE products SET nameproducts="{DATA}" WHERE nameproducts="{context.user_data[var_up]}"')
+        context.user_data[var_up]=""
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='EL PRODUCTO SE HA ACTUALIZADO EXITOSAMENTE')
+
+
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='ERROR AL INGRESAR NUEVO NOMBRE')
+    return await Menu(context, update)
+
+async def AskForDescription(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text="INGRESA LA NUEVA DESCRIPCION.")
+    return U_DESCRIPTION
+
+async def DescriptionUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+    DB_CONN.execute_sql(f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
+    return await Menu(context, update)
+
 
 async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global variable
+
+
     DATA = await FUNCTIONS_LIB.return_msg(update)
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
     login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
+
     if login:
 
         for estado in login:
             variable = estado[4]
         if variable == "1":
-            print("mamaguevo")
+            #print("mamaguevo") profe no vea eso :(
+
             await context.bot.send_message(chat_id=update.effective_chat.id,
                                            text='🤖 |TIENDA| \n')
             """Send message on `/start`."""
@@ -283,41 +377,43 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
             return STORE_START
         elif variable == "4":
-            await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text='🤖 |ADMIN| \n')
-            """Send message on `/start`."""
-            user = update.message.from_user
-            # saludo = "Hola " + user.first_name + " Bienvenido"
-            logger.info("User %s Entró a la tienda", user.first_name)
-
-            keyboard = [
-                [
-                    InlineKeyboardButton("INVENTARIO", callback_data=str(STORE_START)),
-                ], [
-                    InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(THREE)),
-
-                ],
-                [
-                    InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(THREE)),
-
-                ], [
-                    InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(THREE)),
-
-                ],
-                [InlineKeyboardButton("Salir", callback_data=str(END_ROUTES)),
-                 ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text='🤖 ENTRE!\n',
-                                           reply_markup=reply_markup)
-
-            return STORE_START
+            return await Menu(context, update)
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='🤖 |LOGIN| Y ESA BASURA XDDDD\n')
+                                       text='🤖 |LOGIN|\nY ESA BASURA? XDDDD\n')
 
     return LOGIN
+
+
+async def Menu(context, update):
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='🤖 |ADMIN| \n')
+    """Send message on `/start`."""
+    user = update.message.from_user
+    # saludo = "Hola " + user.first_name + " Bienvenido"
+    logger.info("User %s Entró a la tienda", user.first_name)
+    keyboard = [
+        [
+            InlineKeyboardButton("INVENTARIO", callback_data=str(STORE_START)),
+        ], [
+            InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(THREE)),
+
+        ],
+        [
+            InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(THREE)),
+
+        ], [
+            InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(THREE)),
+
+        ],
+        [InlineKeyboardButton("Salir", callback_data=str(END_ROUTES)),
+         ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='🤖 ENTRE!\n',
+                                   reply_markup=reply_markup)
+    return STORE_START
 
 
 async def storeStart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -356,7 +452,17 @@ def main() -> None:
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
+                CallbackQueryHandler(InsertProduct, pattern="^" + str(THREE) + "$"),
 
+            ],
+            UPDATE_PRODUCTS: [
+                CallbackQueryHandler(UpdateName, pattern="^" + str(U_NAME) + "$"),
+                CallbackQueryHandler(AskForDescription, pattern="^" + str(U_DESCRIPTION) + "$"),
+                CallbackQueryHandler(button_click_handler, pattern="^" + str(U_STOCK) + "$"),
+                CallbackQueryHandler(InsertProduct, pattern="^" + str(U_CATEGORY) + "$"),
+                CallbackQueryHandler(InsertProduct, pattern="^" + str(U_PRICE) + "$"),
+                CallbackQueryHandler(InsertProduct, pattern="^" + str(U_IMG) + "$"),
+                CallbackQueryHandler(LoginConfirm, pattern="^" + str(END_ROUTES) + "$"),
             ],
             SIGNUP_ROUT: [
                 CallbackQueryHandler(emailread, pattern="^" + str(SIGNUP) + "$"),
@@ -382,6 +488,18 @@ def main() -> None:
             LOGIN_CONFIRM: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
             ],
+            PRODUCT: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), SaveProductN),
+            ],
+            STOCK_PRODUCT:[
+                  #MessageHandler(filters.TEXT & (~filters.COMMAND), SaveStock),
+            ],
+            U_NAME:[
+                MessageHandler(filters.TEXT & (~filters.COMMAND), UpdateNConfirm),
+            ],
+            U_DESCRIPTION:[
+                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+            ],
 
         },
         fallbacks=[CommandHandler("start", start)],
@@ -395,15 +513,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # productotry = [(1, "RTX 3060", 350.00,
-    #                 "https://m.media-amazon.com/images/I/7156DLyUsYL.__AC_SY300_SX300_QL70_FMwebp_.jpg",
-    #                 "TARJETA DE VIDEO POTENTE 6 GB", 12, 0), (
-    #                    1, "RTX 3070", 350.00, "https://m.media-amazon.com/images/I/71XcVOdHX+S._AC_UY218_.jpg",
-    #                    "TARJETA DE VIDEO POTENTE 6 GB", 12, 0)]
-    #
-    #
-    # array = ['a', 'b']
-    #
-
-    # #for detalle in productotry:
     main()
