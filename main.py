@@ -1,5 +1,6 @@
 import logging
-
+import prettytable as pt
+import telegram.constants
 import DB_CONN
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply, ReplyKeyboardMarkup, KeyboardButton, \
@@ -31,12 +32,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-START_ROUTES, SIGNUP_ROUT = range(2)
+START_ROUTES = range(1)
 
-STORE_START,DETALLE= range(2)
+STORE_START = range(2)
 COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, FOUR, \
     TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
-    LOGIN_PASS, LOGIN_CONFIRM = range(13)
+    LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, DETALLE = range(15)
 
 # VARS FOR SIGN UP ROUTS
 username_var = "user_data1"
@@ -101,51 +102,80 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def Compra(update: Update, context: CallbackContext) -> int:
+    DATA = await FUNCTIONS_LIB.return_msg(update)
 
-    productotry = DB_CONN.execute_select("SELECT * FROM products")
-    print(productotry[1])
+    a = DB_CONN.execute_select('SELECT * FROM products')
+    # for productos in a:
+    #     msg += f"{productos[1]} - <b>CODIGO: {productos[0]}</b>\n"
+    #     msg2+= f"\n``` {productos[1]}     CODIGO: {productos[0]} ```\n"
 
-    for items in productotry:
-     await  detallador(context, items, update)
+    table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS'])
+    table.align['PRODUCTOS'] = 'l'
+    table.align['CODIGOS'] = 'r'
+
+    for productos in a:
+        table.add_row([productos[1], f'{productos[0]}'])
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Nuestros Productos Actuales son: ")
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f'<pre>{table}</pre>',
+        parse_mode=telegram.constants.ParseMode.HTML)
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Ingrese el Codigo del Producto que desea Visualizar",
+        parse_mode=telegram.constants.ParseMode.HTML)
+    return DETALLE
 
 
-async def detallador(context, detalle, update):
-    context.user_data[productud]=detalle[0]
+async def detallador(update: Update, context: CallbackContext):
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    productud = DB_CONN.execute_select(f"SELECT * FROM products WHERE Idproducts ={DATA}")
+    if productud:
+        for detalle in productud:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
+            keyboard = [
+                [
+                    InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+                    InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
+                ],
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
-    keyboard = [
-        [
-            InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-            InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
-        ],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=f'🤖ID ARTICULO: {detalle[0]}\n',
+                                           reply_markup=reply_markup)
+            return STORE_START
+    else:
+        await context.bot.send_photo(chat_id=update.effective_chat.id,
+                                     photo="https://i.postimg.cc/pXXcy9rS/5d055c32-1a19-452e-aaae-92276049e27e.jpg")
+        return DETALLE
 
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
-                                   reply_markup=reply_markup)
-    return STORE_START
 
 async def descripcion(update: Update, context: CallbackContext):
-    context.user_data[productud]=detalle[0]
+    id = context.user_data[productud]
+    product = DB_CONN.execute_select(f"SELECT * FROM products where idproducts= '{id}'")
+    for detalle in product:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
+        keyboard = [
+            [
+                InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+                InlineKeyboardButton("Ver Detalles", callback_data=str(THREE))
+            ],
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
-    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
-    keyboard = [
-        [
-            InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-            InlineKeyboardButton("Ver Detalles", callback_data=str(THREE))
-        ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=f'🤖ID ARTICULO: {detalle[0]}\n',
+                                       reply_markup=reply_markup)
+        return START_ROUTES
 
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
-                                   reply_markup=reply_markup)
-    return START_ROUTES
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -207,7 +237,7 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                        text='⚠️ PORFA INGRESE UNA CONTRASEÑA VÁLIDA ⚠️ \n ')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='POR FAVOR INGRESE UNA CONTRASEÑA VÁLIDA ESTA DEBE SER MAYOR A 6 DIGITOS '
-                                            'y TENER ALMENOS UNA LETRA MAYUSCULA Y UN SIMBOLO ESPECIAL\n ')
+                                            'y TENER ALMENOS UNA LETRA MAYUSCULA, UN NUMERO Y UN SIMBOLO ESPECIAL\n ')
         return TEMP_PASS
 
 
@@ -238,7 +268,6 @@ async def Login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def LoginPass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
-    print(DATA)
     context.user_data[username_login] = DATA
 
     await context.bot.send_message(chat_id=update.effective_chat.id,
@@ -379,6 +408,9 @@ def main() -> None:
             LOGIN_PASS: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), LoginPass),
             ],
+            DETALLE: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), detallador),
+            ],
             LOGIN_CONFIRM: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
             ],
@@ -395,15 +427,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # productotry = [(1, "RTX 3060", 350.00,
-    #                 "https://m.media-amazon.com/images/I/7156DLyUsYL.__AC_SY300_SX300_QL70_FMwebp_.jpg",
-    #                 "TARJETA DE VIDEO POTENTE 6 GB", 12, 0), (
-    #                    1, "RTX 3070", 350.00, "https://m.media-amazon.com/images/I/71XcVOdHX+S._AC_UY218_.jpg",
-    #                    "TARJETA DE VIDEO POTENTE 6 GB", 12, 0)]
+    # lista=DB_CONN.execute_select('SELECT * FROM products')
     #
     #
-    # array = ['a', 'b']
-    #
+    # a =   FUNCTIONS_LIB.ProductsListProcessor(lista)
 
-    # #for detalle in productotry:
     main()
