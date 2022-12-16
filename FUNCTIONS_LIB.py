@@ -24,6 +24,13 @@ import ENV_VARs
 logger = logging.getLogger(__name__)
 
 
+def ProductsListProcessor(pList):
+    for productos in pList:
+        msg = f"TENEMOS LOS SIGUIENTES PRODUCTOS \n" \
+              f"- {productos[1]}"
+    return msg
+
+
 async def userNameProcesor(userN):
     """
     :param userN: param that includes non formatted username
