@@ -30,7 +30,6 @@ def execute_sql(sql_string):
     cursor.close()
     return
 
-
 def execute_select(sql_select):
     mydb, cursor = open_connection()
     cursor.execute(sql_select)

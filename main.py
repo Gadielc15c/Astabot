@@ -2,9 +2,10 @@ import logging
 import prettytable as pt
 import telegram.constants
 import DB_CONN
+import ENV_VARs
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply, ReplyKeyboardMarkup, KeyboardButton, \
-    WebAppInfo
+    WebAppInfo, LabeledPrice
 import FUNCTIONS_LIB
 
 try:
@@ -24,7 +25,10 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
-    ConversationHandler, MessageHandler, filters, CallbackContext,
+    PreCheckoutQueryHandler,
+    ShippingQueryHandler,
+    filters,
+    ConversationHandler, MessageHandler, CallbackContext,
 )
 
 # Enable logging
@@ -34,8 +38,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 START_ROUTES = range(1)
 
-STORE_START, DETALLE, UPDATE_PRODUCTS = range(3)
-COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, FOUR, \
+STORE_START, DETALLE, UPDATE_PRODUCTS, PAYMENTS_START = range(4)
+
+COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
     LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, STOCK_PRODUCT, U_NAME, U_STOCK \
     , U_CATEGORY, U_DESCRIPTION, U_PRICE, U_IMG, DETALLE, TEMP_COMPRA = range(25)
@@ -52,13 +57,15 @@ username_pass = "login_pass"
 
 # VARS FOR PRODUCT HANDLE
 productud = "product_id"
-product_name="product"
-product_price=0.00
-product_img=""
-var_up=""
+product_name = "product"
+product_price = 0.00
+product_img = ""
+var_up = ""
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
+    context.user_data["ChatID"] = update.message.chat_id
     user = update.message.from_user
     logger.info("User %s started the conversation.", user.first_name)
 
@@ -112,7 +119,7 @@ async def Compra(update: Update, context: CallbackContext) -> int:
     table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS'])
     table.align['PRODUCTOS'] = 'l'
     table.align['CODIGOS'] = 'r'
-    # todo: validar que los productos que se inserten
+
     for productos in a:
         table.add_row([productos[1], f'{productos[0]}'])
 
@@ -133,6 +140,8 @@ async def Compra(update: Update, context: CallbackContext) -> int:
 async def detallador(update: Update, context: CallbackContext):
     DATA = await FUNCTIONS_LIB.return_msg(update)
     productud = DB_CONN.execute_select(f"SELECT * FROM products WHERE Idproducts ={DATA}")
+    context.user_data["TEMP_PRODid"] = DATA
+    # todo: validar que los productos que se inserten
     if productud:
         for detalle in productud:
             await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
@@ -140,7 +149,7 @@ async def detallador(update: Update, context: CallbackContext):
             await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
             keyboard = [
                 [
-                    InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+                    InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
                     InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
                 ],
 
@@ -167,7 +176,7 @@ async def descripcion(update: Update, context: CallbackContext):
         keyboard = [
             [
                 InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-                InlineKeyboardButton("Ver Detalles", callback_data=str(THREE))
+                InlineKeyboardButton("Ver Detalles", callback_data=str(SHIPPING_LESS))
             ],
 
         ]
@@ -275,14 +284,17 @@ async def LoginPass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                    text='🤖 |LOGIN| \n Porfavor Digite su Contraseña')
     return LOGIN_CONFIRM
 
+
 async def InsertProduct(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id,text="Introduce el nombre del producto, miamor")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Introduce el nombre del producto, miamor")
     return PRODUCT
+
+
 async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    DATA= await FUNCTIONS_LIB.return_msg(update)
-    #print("El producto elegido es ",DATA)
-    context.user_data[product_name]=DATA
-    exists=DB_CONN.execute_select(f'SELECT nameproducts FROM products WHERE nameproducts="{DATA}"')
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    # print("El producto elegido es ",DATA)
+    context.user_data[product_name] = DATA
+    exists = DB_CONN.execute_select(f'SELECT nameproducts FROM products WHERE nameproducts="{DATA}"')
     if exists:
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text="El producto que introdujo ya existe, Que desea Actualizar?")
@@ -314,23 +326,27 @@ async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        reply_markup=reply_markup)
         return UPDATE_PRODUCTS
     else:
-        #Pedimos descripcion, precio, imagen etc.
+        # Pedimos descripcion, precio, imagen etc.
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text="Crearemos un producto nuevo...preparate")
 
-    return THREE
-#----------------------UPDATE DE NOMBRE-------------------#
+    return SHIPPING_LESS
+
+
+# ----------------------UPDATE DE NOMBRE-------------------#
 async def UpdateName(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Introduce el nuevo nombre del producto.")
-    context.user_data[var_up]=context.user_data[product_name]
+    context.user_data[var_up] = context.user_data[product_name]
     return U_NAME
+
 
 async def UpdateNConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     DATA = await FUNCTIONS_LIB.return_msg(update)
 
     if DATA:
-        DB_CONN.execute_sql(f'UPDATE products SET nameproducts="{DATA}" WHERE nameproducts="{context.user_data[var_up]}"')
-        context.user_data[var_up]=""
+        DB_CONN.execute_sql(
+            f'UPDATE products SET nameproducts="{DATA}" WHERE nameproducts="{context.user_data[var_up]}"')
+        context.user_data[var_up] = ""
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='EL PRODUCTO SE HA ACTUALIZADO EXITOSAMENTE')
 
@@ -340,63 +356,72 @@ async def UpdateNConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        text='ERROR AL INGRESAR NUEVO NOMBRE')
     return await Menu(context, update)
 
-#----------------------UPDATE DE DESCRIPCION-------------------#
+
+# ----------------------UPDATE DE DESCRIPCION-------------------#
 async def AskForDescription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text="INGRESA LA NUEVA DESCRIPCION.")
     return U_DESCRIPTION
 
-async def DescriptionUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    DATA=await FUNCTIONS_LIB.return_msg(update)
-    DB_CONN.execute_sql(f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+
+async def DescriptionUpdate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    DB_CONN.execute_sql(
+        f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
     await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
+                                   text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
     return await Menu(context, update)
 
-#----------------------UPDATE DE PRECIOS-------------------#
+
+# ----------------------UPDATE DE PRECIOS-------------------#
 async def AskForPrice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text="$ INGRESA EL NUEVO PRECIO $.")
     return U_PRICE
 
-async def PriceUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    DATA=await FUNCTIONS_LIB.return_msg(update)
-    new_price=float(DATA)
+
+async def PriceUpdate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    new_price = float(DATA)
 
     try:
-        msg=await FUNCTIONS_LIB.num_valid(new_price)
+        msg = await FUNCTIONS_LIB.num_valid(new_price)
     except:
-        msg="ERROR: EL DATO DEBE SER DE TIPO NUMERICO"
-    if msg=="TRUE":
+        msg = "ERROR: EL DATO DEBE SER DE TIPO NUMERICO"
+    if msg == "TRUE":
         print("Estoy actualizando precios")
-        DB_CONN.execute_sql(f'UPDATE products SET price="{new_price}" WHERE nameproducts="{context.user_data[product_name]}"')
+        DB_CONN.execute_sql(
+            f'UPDATE products SET price="{new_price}" WHERE nameproducts="{context.user_data[product_name]}"')
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text='WAOS...PRECIO ACTUALIZADO!!')
+                                       text='WAOS...PRECIO ACTUALIZADO!!')
         return await Menu(context, update)
     else:
         print("Estoy en el else de precios")
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=msg)
         return U_PRICE
-#---------------------UPDATE DE IMAGENES-------------------#
+
+
+# ---------------------UPDATE DE IMAGENES-------------------#
 async def AskForImg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text="INGRESE EL LINK DE LA IMAGEN (png o jpg).")
     return U_IMG
 
-async def ImgUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
-    DATA=await FUNCTIONS_LIB.return_msg(update)
-    msg=await FUNCTIONS_LIB
 
-
-    DB_CONN.execute_sql(f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+async def ImgUpdate(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA = await FUNCTIONS_LIB.return_msg(update)
+    msg = await FUNCTIONS_LIB
+    DB_CONN.execute_sql(
+        f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
     await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
+                                   text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
     return await Menu(context, update)
 
-#---------------------UPDATE DE CATEGORIAS----------------#
 
-#---------------------UPDATE DE PRECIOS-------------------#
+# ---------------------UPDATE DE CATEGORIAS----------------#
+
+# ---------------------UPDATE DE PRECIOS-------------------#
 async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global variable
     DATA = await FUNCTIONS_LIB.return_msg(update)
@@ -408,20 +433,15 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         for estado in login:
             variable = estado[4]
         if variable == "1":
-            #print("mamaguevo") profe no vea eso :(
-
             await context.bot.send_message(chat_id=update.effective_chat.id,
                                            text='🤖 |TIENDA| \n')
-            """Send message on `/start`."""
             user = update.message.from_user
-            # saludo = "Hola " + user.first_name + " Bienvenido"
             logger.info("User %s Entró a la tienda", user.first_name)
-
             keyboard = [
                 [
                     InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
                 ], [
-                    InlineKeyboardButton("Historico de Pedidos", callback_data=str(THREE)),
+                    InlineKeyboardButton("Historico de Pedidos", callback_data=str(SHIPPING_LESS)),
 
                 ],
 
@@ -446,22 +466,20 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def Menu(context, update):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text='🤖 |ADMIN| \n')
-    """Send message on `/start`."""
     user = update.message.from_user
-    # saludo = "Hola " + user.first_name + " Bienvenido"
     logger.info("User %s Entró a la tienda", user.first_name)
     keyboard = [
         [
             InlineKeyboardButton("INVENTARIO", callback_data=str(STORE_START)),
         ], [
-            InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(THREE)),
+            InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(SHIPPING_LESS)),
 
         ],
         [
-            InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(THREE)),
+            InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(SHIPPING_LESS)),
 
         ], [
-            InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(THREE)),
+            InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(SHIPPING_LESS)),
 
         ],
         [InlineKeyboardButton("Salir", callback_data=str(END_ROUTES)),
@@ -476,9 +494,57 @@ async def Menu(context, update):
 
 async def storeStart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
-    context.user_data[username_pass] = DATA
+    keyboard = [
+        [
+            InlineKeyboardButton("CON ENVIO 🚞", callback_data=str(STORE_START)),
+        ], [
 
-    return START_ROUTES
+            InlineKeyboardButton("NAH, YO LO BUSCO 🏃🏿", callback_data=str(SHIPPING_LESS)),
+        ]
+
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text='🤖 ME GUSTA PILA EL DINERO 🤑💸💵!!!\n '
+                                        'Pero hablando en serio.., Deseas Una Compra con o sin Envio?',
+                                   reply_markup=reply_markup)
+
+    return PAYMENTS_START
+
+
+async def compra_sin_envio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Sends an invoice without shipping-payment."""
+    IDCompra = context.user_data["TEMP_PRODid"]
+    select = DB_CONN.execute_select(f"SELECT * FROM products where idproducts ={IDCompra}")
+    for prods in select:
+        print(prods)
+        chat_id = context.user_data["ChatID"]
+        title = prods[1]
+        description = prods[4]
+        payload = "Custom-Payload"
+        currency = "USD"
+        # price in dollars
+        price = int(prods[2])
+        # price * 100 to include 2 decimal points
+        prices = [LabeledPrice("PRODUCTO", price * 100)]
+        prices = [LabeledPrice("PRODUCTO", price * 100)]
+
+        # optionally pass need_name=True, need_phone_number=True,
+        # need_email=True, need_shipping_address=True, is_flexible=True
+        await context.bot.send_invoice(chat_id, title, description, payload, ENV_VARs.PAYMENT_PROVIDER_TOKEN, currency,
+                                       prices)
+        return TEMP_PAGO
+
+
+async def precheckout_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Answers the PreQecheckoutQuery"""
+    query = update.pre_checkout_query
+    # check the payload, is this from your bot?
+    if query.invoice_payload != "Custom-Payload":
+        # answer False pre_checkout_query
+        await query.answer(ok=False, error_message="Something went wrong...")
+    else:
+        await query.answer(ok=True)
 
 
 async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -490,8 +556,14 @@ async def end(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     print(query.data)
     if query.data == COMPRA:
         pass
-    await query.edit_message_text(text="Lo suponia...🤨 🏳️‍🌈🏳️‍🌈👁")
+    await query.edit_message_text(text="Lo suponia...🤨 🏳️‍🌈🏳️‍🌈")
     return ConversationHandler.END
+
+
+async def Ready(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Confirms the successful payment."""
+    # do something after successfully receiving payment?
+    await update.message.reply_text("GRACIAS POR COMPRAR, NO VUELVAS!!")
 
 
 def main() -> None:
@@ -508,10 +580,15 @@ def main() -> None:
             ],
             STORE_START: [
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
+                CallbackQueryHandler(storeStart, pattern="^" + str(PAYMENTS_START) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
-                CallbackQueryHandler(InsertProduct, pattern="^" + str(THREE) + "$"),
 
+            ],
+            PAYMENTS_START: [
+                CallbackQueryHandler(compra_sin_envio, pattern="^" + str(TEMP_PAGO) + "$"),
+                CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
+                CallbackQueryHandler(compra_sin_envio, pattern="^" + str(SHIPPING_LESS) + "$"),
             ],
             UPDATE_PRODUCTS: [
                 CallbackQueryHandler(UpdateName, pattern="^" + str(U_NAME) + "$"),
@@ -550,7 +627,7 @@ def main() -> None:
                 MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
             ],
             TEMP_COMPRA: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), Compra),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), storeStart),
             ],
             PRODUCT: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), SaveProductN),
@@ -561,7 +638,7 @@ def main() -> None:
             U_NAME: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), UpdateNConfirm),
             ],
-            U_DESCRIPTION:[
+            U_DESCRIPTION: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
             ],
             U_STOCK: [
@@ -570,21 +647,31 @@ def main() -> None:
             U_PRICE: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), PriceUpdate),
             ],
-            U_CATEGORY:[
+            U_CATEGORY: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
             ],
-            U_IMG:[
+            U_IMG: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+            ],
+            TEMP_PAGO: [
+                MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
             ],
 
         },
+
         fallbacks=[CommandHandler("start", start)],
     )
+    # Optional handler if your product requires shipping
+    # application.add_handler(ShippingQueryHandler())
 
-    # Add ConversationHandler to application that will be used for handling updates
+    application.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+
+    application.add_handler(
+        MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
+    )
+
     application.add_handler(conv_handler)
 
-    # Run the bot until the user presses Ctrl-C
     application.run_polling()
 
 
