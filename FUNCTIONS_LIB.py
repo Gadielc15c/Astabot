@@ -1,6 +1,10 @@
 import logging
 import re
 import smtplib
+
+from rfc3986 import validators
+
+import DB_CONN
 import random
 import ssl
 import string
@@ -403,3 +407,16 @@ async def edit_message(update: Update, context: ContextTypes.DEFAULT_TYPE, text:
                                                   parse_mode=parse)
 
     return msg
+
+async def num_valid(num):
+    if num<=0:
+        return "ERROR: EL NUMERO DEBE SER MAYOR A CERO"
+    else:
+        return "TRUE"
+def is_string_an_url(url_string: str):
+    result = validators.url(url_string)
+
+    if isinstance(result):
+        return "NO ES UNA URL"
+
+    return "TRUE"

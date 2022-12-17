@@ -2,9 +2,9 @@ import DB_CONN
 
 if __name__ == "__main__":
     exists = DB_CONN.execute_select(
-        f'SELECT username FROM user WHERE username = "Lorenzo"')  # Devuelve bool 1: Existe, 0: No Existe
+        f'SELECT nameproducts FROM products WHERE nameproducts= "Laptop"')  # Devuelve bool 1: Existe, 0: No Existe
     print(exists)
-    if not exists:
-        print("El usuario no existe")
+    if exists:
+        print("El usuario existe")
     else:
-        print("Si existe")
+        print("no existe")

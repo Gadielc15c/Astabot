@@ -2,7 +2,6 @@ import ENV_VARs
 import mysql.connector
 from mysql.connector import errorcode
 
-
 def open_connection():
     mydb, cursor = None, None
     try:
