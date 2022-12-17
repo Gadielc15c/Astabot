@@ -32,14 +32,18 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+#----------------------ROUTES-----------------------#
 START_ROUTES = range(1)
 
-STORE_START, DETALLE, UPDATE_PRODUCTS = range(3)
-COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, FOUR, \
-    TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
-    LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, STOCK_PRODUCT, U_NAME, U_STOCK \
-    , U_CATEGORY, U_DESCRIPTION, U_PRICE, U_IMG, DETALLE, TEMP_COMPRA = range(25)
+STORE_START, DETALLE, UPDATE_PRODUCTS, PAYMENTS_START= range(4)
 
+COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, THREE, \
+TEMP_USER, TEMP_MAIL, TEMP_PASS, EMAIL_CONFIRM, LOGIN, \
+LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, U_NAME, \
+U_STOCK , U_CATEGORY, U_DESCRIPTION, U_PRICE, U_IMG,\
+DETALLE, TEMP_COMPRA,TEMP_PAGO,  I_PRICE, I_DESCRIPTION,\
+I_CATEGORY, I_IMG,I_STOCK,FOUR, = range(29)
+#--------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
 username_var = "user_data1"
 email_var = "user_mail"
@@ -53,9 +57,12 @@ username_pass = "login_pass"
 # VARS FOR PRODUCT HANDLE
 productud = "product_id"
 product_name="product"
-product_price=0.00
-product_img=""
-var_up=""
+product_price="0.00"
+product_img="https//:image.com"
+product_desc="description"
+product_category="category"
+product_stock="0.00"
+var_up="attribute_to_update"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Send message on `/start`."""
@@ -112,7 +119,7 @@ async def Compra(update: Update, context: CallbackContext) -> int:
     table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS'])
     table.align['PRODUCTOS'] = 'l'
     table.align['CODIGOS'] = 'r'
-    # todo: validar que los productos que se inserten
+
     for productos in a:
         table.add_row([productos[1], f'{productos[0]}'])
 
@@ -132,6 +139,7 @@ async def Compra(update: Update, context: CallbackContext) -> int:
 
 async def detallador(update: Update, context: CallbackContext):
     DATA = await FUNCTIONS_LIB.return_msg(update)
+    # todo: validar que los productos que se inserten
     productud = DB_CONN.execute_select(f"SELECT * FROM products WHERE Idproducts ={DATA}")
     if productud:
         for detalle in productud:
@@ -274,8 +282,10 @@ async def LoginPass(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text='🤖 |LOGIN| \n Porfavor Digite su Contraseña')
     return LOGIN_CONFIRM
+#------------------INICIO DE LOS INSERT-------------------------#
 
-async def InsertProduct(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#----------INSERT DE NOMBRE------------#
+async def InsertProductName(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,text="Introduce el nombre del producto, miamor")
     return PRODUCT
 async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -305,6 +315,10 @@ async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("CATEGORIA", callback_data=str(U_CATEGORY)),
 
             ],
+            [
+                InlineKeyboardButton("STOCK", callback_data=str(U_STOCK)),
+
+            ],
             [InlineKeyboardButton("NADA, GRACIAS.", callback_data=str(END_ROUTES)),
              ],
         ]
@@ -316,11 +330,89 @@ async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         #Pedimos descripcion, precio, imagen etc.
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text="Crearemos un producto nuevo...preparate")
-
+                                       text="Que descripcion tiene?")
+        return I_DESCRIPTION
     return THREE
+
+async def InsertDescription(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+    context.user_data[product_desc]=DATA
+    await context.bot.send_message(chat_id=update.effective_chat.id,text="Introduce su categoria.")
+    return I_CATEGORY
+
+async def InsertCategory(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+    context.user_data[product_category]=DATA
+    await context.bot.send_message(chat_id=update.effective_chat.id,text="Cual es el precio?")
+    return I_PRICE
+async def InsertPrice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+
+    try:
+        price = float(DATA)
+        msg = await FUNCTIONS_LIB.num_valid(price)
+    except:
+        msg = "Estas bien?? Te pedi un dato numerico. Escribelo denuevo."
+    if msg == "TRUE":
+        context.user_data[product_price] = DATA
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Necesito una imagen. Introduce el link de la imagen que quieras ponerle."
+                                            "\nSi no tienes una imagen escribe (NO)")
+        return I_IMG
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=msg)
+        return I_PRICE
+async def InsertIMG(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+
+
+    if DATA.lower()!="no":
+
+        resp= await FUNCTIONS_LIB.ValidateUrl(DATA)
+        if resp:
+            context.user_data[product_img]=DATA
+            await context.bot.send_message(chat_id=update.effective_chat.id,text="Ahora dime la cantidad o stock que quieres ingresar.")
+            return I_STOCK
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="Ese link que ingresaste no es valido, prueba con otro")
+            return I_IMG
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Oskers.\nPor ultimo necesito que me digas que cantidad deseas ingresar de este producto bro.")
+        context.user_data[product_img]="https://filestore.community.support.microsoft.com/api/images/ext?url=https%3A%2F%2Fanswersstaticfilecdnv2.azureedge.net%2Fstatic%2Fimages%2Fimage-not-found.jpg"
+        return I_STOCK
+
+async def InsertStock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+
+    try:
+        stock= float(DATA)
+        msg = await FUNCTIONS_LIB.num_valid(stock)
+    except:
+        msg = "Te crees gracioso? introduce un dato NUMERICO."
+    if msg == "TRUE":
+        context.user_data[product_stock] = DATA
+        DB_CONN.execute_sql(f'INSERT INTO products(nameproducts,price,imgurl,descproducts,stock,category) '
+                            f'VALUES("{context.user_data[product_name]}","{context.user_data[product_price]}",'
+                            f'"{context.user_data[product_img]}","{context.user_data[product_desc]}","{context.user_data[product_stock]}"'
+                            f',"{context.user_data[product_category]}")')
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Excelente, Te amo.\n\nEL PRODUCTO FUE AGREGADO EXITOSAMENTE...WAOS!!")
+        return await Menu(context, update)
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=msg)
+        return I_STOCK
+
+#---------------------------FIN DE LOS INSERT----------------------------------#
+
+
+#-------------------------------INICIO DE UPDATES-----------------------------#
+
 #----------------------UPDATE DE NOMBRE-------------------#
-async def UpdateName(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def AskForName(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Introduce el nuevo nombre del producto.")
     context.user_data[var_up]=context.user_data[product_name]
     return U_NAME
@@ -332,7 +424,7 @@ async def UpdateNConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
         DB_CONN.execute_sql(f'UPDATE products SET nameproducts="{DATA}" WHERE nameproducts="{context.user_data[var_up]}"')
         context.user_data[var_up]=""
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='EL PRODUCTO SE HA ACTUALIZADO EXITOSAMENTE')
+                                       text='EL PRODUCTO SE HA ACTUALIZADO EXITOSAMENTE. Dios te bendiga bro')
 
 
     else:
@@ -361,20 +453,17 @@ async def AskForPrice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def PriceUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
     DATA=await FUNCTIONS_LIB.return_msg(update)
-    new_price=float(DATA)
-
     try:
+        new_price = float(DATA)
         msg=await FUNCTIONS_LIB.num_valid(new_price)
     except:
         msg="ERROR: EL DATO DEBE SER DE TIPO NUMERICO"
     if msg=="TRUE":
-        print("Estoy actualizando precios")
         DB_CONN.execute_sql(f'UPDATE products SET price="{new_price}" WHERE nameproducts="{context.user_data[product_name]}"')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                            text='WAOS...PRECIO ACTUALIZADO!!')
         return await Menu(context, update)
     else:
-        print("Estoy en el else de precios")
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=msg)
         return U_PRICE
@@ -386,17 +475,55 @@ async def AskForImg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ImgUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
     DATA=await FUNCTIONS_LIB.return_msg(update)
-    msg=await FUNCTIONS_LIB
-
-
-    DB_CONN.execute_sql(f'UPDATE products SET descproducts="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+    resp=await FUNCTIONS_LIB.ValidateUrl(DATA)
+    if resp:
+        DB_CONN.execute_sql(f'UPDATE products SET imgurl="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='IMAGEN ACTUALIZADA!, no burtos')
+        return await Menu(context, update)
+    else:
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text="ERROR: El formato del link es incorrecto")
+        return U_IMG
+#---------------------UPDATE DE CATEGORIAS----------------#
+async def AskForCategory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text='LA DESCRIPCION HA SIDO ACTUALIZADA!!')
+                                   text="INGRESA LA NUEVA CATEGORIA.")
+    return U_CATEGORY
+
+async def CategoryUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+    DB_CONN.execute_sql(f'UPDATE products SET category="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='SE HA ACTUALIZADO LA CATEGORIA!!')
     return await Menu(context, update)
 
-#---------------------UPDATE DE CATEGORIAS----------------#
+#---------------------UPDATE DE STOCK-------------------#
+async def AskForStock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text="INGRESA EL NUEVO STOCK.")
+    return U_STOCK
 
-#---------------------UPDATE DE PRECIOS-------------------#
+async def StockUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    DATA=await FUNCTIONS_LIB.return_msg(update)
+    try:
+        new_stock = float(DATA)
+        msg=await FUNCTIONS_LIB.num_valid(new_stock)
+    except:
+        msg="ERROR: EL DATO DEBE SER DE TIPO NUMERICO"
+    if msg=="TRUE":
+
+        DB_CONN.execute_sql(f'UPDATE products SET stock="{new_stock}" WHERE nameproducts="{context.user_data[product_name]}"')
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text='Manito EL Stock ha sido actualizado!!.')
+        return await Menu(context, update)
+    else:
+
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text=msg)
+        return U_STOCK
+
+#-----------------------------------FIN DE UPDATE------------------------------#
 async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global variable
     DATA = await FUNCTIONS_LIB.return_msg(update)
@@ -510,16 +637,16 @@ def main() -> None:
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
-                CallbackQueryHandler(InsertProduct, pattern="^" + str(THREE) + "$"),
+                CallbackQueryHandler(InsertProductName, pattern="^" + str(THREE) + "$"),
 
             ],
             UPDATE_PRODUCTS: [
-                CallbackQueryHandler(UpdateName, pattern="^" + str(U_NAME) + "$"),
+                CallbackQueryHandler(AskForName, pattern="^" + str(U_NAME) + "$"),
                 CallbackQueryHandler(AskForDescription, pattern="^" + str(U_DESCRIPTION) + "$"),
-                CallbackQueryHandler(button_click_handler, pattern="^" + str(U_STOCK) + "$"),
-                CallbackQueryHandler(InsertProduct, pattern="^" + str(U_CATEGORY) + "$"),
+                CallbackQueryHandler(AskForStock, pattern="^" + str(U_STOCK) + "$"),
+                CallbackQueryHandler(AskForCategory, pattern="^" + str(U_CATEGORY) + "$"),
                 CallbackQueryHandler(AskForPrice, pattern="^" + str(U_PRICE) + "$"),
-                CallbackQueryHandler(InsertProduct, pattern="^" + str(U_IMG) + "$"),
+                CallbackQueryHandler(AskForImg, pattern="^" + str(U_IMG) + "$"),
                 CallbackQueryHandler(LoginConfirm, pattern="^" + str(END_ROUTES) + "$"),
             ],
             SIGNUP_ROUT: [
@@ -555,9 +682,6 @@ def main() -> None:
             PRODUCT: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), SaveProductN),
             ],
-            STOCK_PRODUCT: [
-                # MessageHandler(filters.TEXT & (~filters.COMMAND), SaveStock),
-            ],
             U_NAME: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), UpdateNConfirm),
             ],
@@ -565,16 +689,31 @@ def main() -> None:
                 MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
             ],
             U_STOCK: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), StockUpdate),
             ],
             U_PRICE: [
                 MessageHandler(filters.TEXT & (~filters.COMMAND), PriceUpdate),
             ],
             U_CATEGORY:[
-                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), CategoryUpdate),
             ],
             U_IMG:[
-                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), ImgUpdate),
+            ],
+            I_DESCRIPTION: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertDescription),
+            ],
+            I_PRICE: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertPrice),
+            ],
+            I_CATEGORY: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertCategory),
+            ],
+            I_IMG: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertIMG),
+            ],
+            I_STOCK: [
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertStock),
             ],
 
         },

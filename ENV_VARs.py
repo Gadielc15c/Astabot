@@ -1,6 +1,6 @@
 # TELEGRAM TOKENS
-CONN_TOKEN = "5797256473:AAEsrt-5LWYfYh_4YtuMEFfrZdNh7GjJhAA"  # Gadiel
-# CONN_TOKEN = "5873936957:AAHOpnTuGby2pOZAOKAQg6ddiuMq27qS0yI" #Leo
+#CONN_TOKEN = "5797256473:AAEsrt-5LWYfYh_4YtuMEFfrZdNh7GjJhAA"  # Gadiel
+CONN_TOKEN = "5873936957:AAHOpnTuGby2pOZAOKAQg6ddiuMq27qS0yI" #Leo
 
 # SQL CONNETION
 mysql_host = "gadiel-bd.cdvr1eyvniyf.us-east-1.rds.amazonaws.com"
