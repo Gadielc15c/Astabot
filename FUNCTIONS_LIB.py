@@ -413,6 +413,8 @@ async def num_valid(num):
         return "ERROR: EL NUMERO DEBE SER MAYOR A CERO"
     else:
         return "TRUE"
+
+
 async def ValidateUrl(url):
     """
     This function is in charge of validating if a text string is a url and if it is an image.
