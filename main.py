@@ -45,7 +45,7 @@ COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, \
     STOCK_PRODUCT, U_NAME, U_STOCK, U_CATEGORY, U_DESCRIPTION, \
     U_PRICE, U_IMG, DETALLE, TEMP_COMPRA, ADD_PRODUCTS, TEMP_PAGO, I_PRICE, \
-    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK = range(32)
+    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,BUY_SUG = range(34)
 
 # --------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
@@ -57,6 +57,7 @@ ver_code = "Vercode"
 # VARS FOR LOGIN
 username_login = "login_username"
 username_pass = "login_pass"
+user_id="0"
 
 # VARS FOR PRODUCT HANDLE
 productud = "product_id"
@@ -170,9 +171,18 @@ async def detallador(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Dime perdón si quieres avanzar 🤣🤣🤣")
         return TEMP_COMPRA
 
+async def Sugerencia(update: Update, context: CallbackContext):
+    suggestion=DB_CONN.execute_select(f'SELECT p.idproducts FROM purchase pur INNER JOIN  products p  ON pur.product=p.idproducts INNER JOIN  user u ON pur.user=u.iduser  WHERE u.iduser="{context.user_data[user_id]}" GROUP BY p.nameproducts ORDER BY count(p.nameproducts)  desc LIMIT 1 ;')
+    if suggestion:
+        context.user_data[productud]=suggestion[0][0]
 
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="A continuacion te mostraré el producto que te recomiendo, espero que te guste😁.")
+    await descripcion(update,context)
 async def descripcion(update: Update, context: CallbackContext):
+    print("wai coño")
     id = context.user_data[productud]
+    context.user_data["TEMP_PRODid"]=id
     product = DB_CONN.execute_select(f"SELECT * FROM products where idproducts= '{id}'")
     for detalle in product:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
@@ -180,17 +190,15 @@ async def descripcion(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
         keyboard = [
             [
-                InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
+                InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
                 InlineKeyboardButton("Ver Detalles", callback_data=str(SHIPPING_LESS))
             ],
-
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=f'🤖ID ARTICULO: {detalle[0]}\n',
                                        reply_markup=reply_markup)
         return START_ROUTES
-
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -563,6 +571,7 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
     login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
+    context.user_data[user_id]=login[0][0]
     if login:
 
         for estado in login:
@@ -580,7 +589,12 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             keyboard = [
                 [
                     InlineKeyboardButton("Comprar", callback_data=str(COMPRA)),
-                ], [
+                ],
+                [
+                    InlineKeyboardButton("Recomiendame algo!", callback_data=str(SUGGESTION)),
+                ],
+
+                [
                     InlineKeyboardButton("Historico de Pedidos", callback_data=str(SHIPPING_LESS)),
 
                 ],
@@ -723,11 +737,12 @@ def main() -> None:
             START_ROUTES: [
                 CallbackQueryHandler(Login, pattern="^" + str(LOGIN) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
+                CallbackQueryHandler(storeStart, pattern="^" + str(COMPRA) + "$"),
                 CallbackQueryHandler(end, pattern="^" + str(END_ROUTES) + "$"),
-
             ],
             STORE_START: [
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
+                CallbackQueryHandler(Sugerencia, pattern="^" + str(SUGGESTION) + "$"),
                 CallbackQueryHandler(storeStart, pattern="^" + str(PAYMENTS_START) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
                 CallbackQueryHandler(button_click_handler, pattern="^" + str(BUTTON_HANDLER) + "$"),
@@ -739,7 +754,7 @@ def main() -> None:
             ],
             ADMIN_OPTIONS: [
                 CallbackQueryHandler(InsertProductName, pattern="^" + str(ADD_PRODUCTS) + "$"),
-
+                CallbackQueryHandler(end, pattern="^" + str(END_ROUTES) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),  # TODO: son valores de llenado
                 CallbackQueryHandler(compra_sin_envio, pattern="^" + str(SHIPPING_LESS) + "$"),
             ],
@@ -825,9 +840,6 @@ def main() -> None:
             TEMP_PAGO: [
                 MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
             ],
-            TEMP_MENU: [
-
-            ],
 
         },
 
@@ -841,8 +853,7 @@ def main() -> None:
     application.add_handler(
         MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
     )
-    Updatis = ""
-    Contextis = ""
+
 
     application.add_handler(conv_handler)
 
