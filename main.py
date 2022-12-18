@@ -45,7 +45,7 @@ COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, \
     STOCK_PRODUCT, U_NAME, U_STOCK, U_CATEGORY, U_DESCRIPTION, \
     U_PRICE, U_IMG, DETALLE, TEMP_COMPRA, ADD_PRODUCTS, TEMP_PAGO, I_PRICE, \
-    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,BUY_SUG = range(34)
+    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,INVENTARY,STATISTICS,SEGMENTATION = range(36)
 
 # --------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
@@ -121,13 +121,13 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def Compra(update: Update, context: CallbackContext) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
-
     a = DB_CONN.execute_select('SELECT * FROM products WHERE stock > 0')
-    table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS'])
+    table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS','CANTIDAD'])
     table.align['PRODUCTOS'] = 'l'
     table.align['CODIGOS'] = 'r'
+    table.align['CANTIDAD'] = 'r'
     for productos in a:
-        table.add_row([productos[1], f'{productos[0]}'])
+        table.add_row([productos[1], f'{productos[0]}',f'{productos[5]}'])
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Nuestros Productos Actuales son: ")
 
@@ -135,12 +135,28 @@ async def Compra(update: Update, context: CallbackContext) -> int:
         chat_id=update.effective_chat.id,
         text=f'<pre>{table}</pre>',
         parse_mode=telegram.constants.ParseMode.HTML)
+    #print(variable)
+    if variable == "1":
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Ingrese el Codigo del Producto que desea Visualizar",
+            parse_mode=telegram.constants.ParseMode.HTML)
+        return DETALLE
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(ADD_PRODUCTS)),
 
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Ingrese el Codigo del Producto que desea Visualizar",
-        parse_mode=telegram.constants.ParseMode.HTML)
-    return DETALLE
+            ],
+
+            [InlineKeyboardButton("VOLVER AL MENU", callback_data=str(TEMP_MENU)),
+             ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='ELIGE PIBE!',
+                                       reply_markup=reply_markup)
+        return ADMIN_OPTIONS
 
 
 async def detallador(update: Update, context: CallbackContext):
@@ -180,7 +196,7 @@ async def Sugerencia(update: Update, context: CallbackContext):
                                        text="A continuacion te mostraré el producto que te recomiendo, espero que te guste😁.")
     await descripcion(update,context)
 async def descripcion(update: Update, context: CallbackContext):
-    print("wai coño")
+    #print("wai coño")
     id = context.user_data[productud]
     context.user_data["TEMP_PRODid"]=id
     product = DB_CONN.execute_select(f"SELECT * FROM products where idproducts= '{id}'")
@@ -493,7 +509,7 @@ async def PriceUpdate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        text='WAOS...PRECIO ACTUALIZADO!!')
         return await Menu(context, update)
     else:
-        print("Estoy en el else de precios")
+       # print("Estoy en el else de precios")
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=msg)
         return U_PRICE
@@ -627,17 +643,17 @@ async def Menu(context, update):
 
     keyboard = [
         [
-            InlineKeyboardButton("INVENTARIO", callback_data=str(STORE_START)),  # TODO: AGREGAR INVENTARIO
+            InlineKeyboardButton("INVENTARIO", callback_data=str(INVENTARY)),
         ], [
             InlineKeyboardButton("AGREGAR PRODUCTOS", callback_data=str(ADD_PRODUCTS)),
 
         ],
         [
-            InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(SHIPPING_LESS)),
+            InlineKeyboardButton("VER SEGMENTACION DE USUARIOS", callback_data=str(SEGMENTATION)),
             # TODO: AGREGAR SEGMENTACION
 
         ], [
-            InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(SHIPPING_LESS)),
+            InlineKeyboardButton("VER ESTADISTICA DE VENTAS", callback_data=str(STATISTICS)),
             # TODO: AGREGAR ESTADISTICA
 
         ],
@@ -755,7 +771,8 @@ def main() -> None:
             ADMIN_OPTIONS: [
                 CallbackQueryHandler(InsertProductName, pattern="^" + str(ADD_PRODUCTS) + "$"),
                 CallbackQueryHandler(end, pattern="^" + str(END_ROUTES) + "$"),
-                CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),  # TODO: son valores de llenado
+                CallbackQueryHandler(menuLoader, pattern="^" + str(TEMP_MENU) + "$"),
+                CallbackQueryHandler(Compra, pattern="^" + str(INVENTARY) + "$"),  # TODO: son valores de llenado
                 CallbackQueryHandler(compra_sin_envio, pattern="^" + str(SHIPPING_LESS) + "$"),
             ],
             UPDATE_PRODUCTS: [
