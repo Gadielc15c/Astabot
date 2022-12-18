@@ -12,3 +12,7 @@ mysql_database = "astaBot"
 
 email = "astabotia@gmail.com"
 passw = "mbqwlkitzndhczfg"
+
+#BOTS
+botGadiel="@AstaC_bot"
+botLeo="@Mugiwara2bot"

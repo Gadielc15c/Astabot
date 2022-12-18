@@ -319,7 +319,8 @@ async def SaveProductN(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("STOCK", callback_data=str(U_STOCK)),
 
             ],
-            [InlineKeyboardButton("NADA, GRACIAS.", callback_data=str(END_ROUTES)),
+            [
+                InlineKeyboardButton("NADA, GRACIAS.", callback_data=str(END_ROUTES)),
              ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -370,13 +371,13 @@ async def InsertIMG(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if DATA.lower()!="no":
 
         resp= await FUNCTIONS_LIB.ValidateUrl(DATA)
-        if resp:
+        if resp==True:
             context.user_data[product_img]=DATA
             await context.bot.send_message(chat_id=update.effective_chat.id,text="Ahora dime la cantidad o stock que quieres ingresar.")
             return I_STOCK
         else:
             await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text="Ese link que ingresaste no es valido, prueba con otro")
+                                           text=resp)
             return I_IMG
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
@@ -470,20 +471,20 @@ async def PriceUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
 #---------------------UPDATE DE IMAGENES-------------------#
 async def AskForImg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text="INGRESE EL LINK DE LA IMAGEN (png o jpg).")
+                                   text="INGRESE EL LINK DE LA IMAGEN.")
     return U_IMG
 
 async def ImgUpdate(update: Update,context: ContextTypes.DEFAULT_TYPE):
     DATA=await FUNCTIONS_LIB.return_msg(update)
     resp=await FUNCTIONS_LIB.ValidateUrl(DATA)
-    if resp:
+    if resp==True:
         DB_CONN.execute_sql(f'UPDATE products SET imgurl="{DATA}" WHERE nameproducts="{context.user_data[product_name]}"')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='IMAGEN ACTUALIZADA!, no burtos')
         return await Menu(context, update)
     else:
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text="ERROR: El formato del link es incorrecto")
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text=resp)
         return U_IMG
 #---------------------UPDATE DE CATEGORIAS----------------#
 async def AskForCategory(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -529,7 +530,7 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     DATA = await FUNCTIONS_LIB.return_msg(update)
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
-    login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
+    login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{context.user_data[username_pass]}"')
     if login:
 
         for estado in login:
@@ -571,6 +572,7 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 
 async def Menu(context, update):
+
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text='🤖 |ADMIN| \n')
     """Send message on `/start`."""
