@@ -1,7 +1,7 @@
 import logging
 import re
 import smtplib
-
+from geopy.geocoders import Nominatim
 from rfc3986 import validators
 
 import DB_CONN
@@ -25,7 +25,22 @@ from telegram.ext import (
 
 import ENV_VARs
 
+geolocator = Nominatim(user_agent="geoapiExercises")
+
 logger = logging.getLogger(__name__)
+
+
+def getAdress(lat, lon):
+    location = geolocator.reverse(str(lat) + "," + str(lon))
+    address = location.raw['address']
+    suburb = address.get('suburb', '')
+    city = address.get('city', '')
+    state = address.get('state', '')
+    country = address.get('country', '')
+    code = address.get('country_code')
+    zipcode = address.get('postcode')
+    msg = f"Enviar a:{suburb, state} en {city, country} {zipcode}"
+    return msg
 
 
 def ProductsListProcessor(pList):
@@ -60,6 +75,10 @@ async def userNameProcesor(userN):
 
 
 def SpaceRemover(DATA):
+    """
+    :param DATA: REVIEVES DATA FOR SPACES TRIM
+    :return: TRIMMED DATA
+    """
     return "".join([i for i in DATA.split(" ") if i])
 
 
@@ -77,8 +96,6 @@ async def emailValid(mail):
     :param mail: REVIEVES EMAIL
     :return: EMAIL IF VALID OR BOOL FALSE IF NOT
     """
-
-
     spacelessEmail = SpaceRemover(mail)
     regex = re.compile(r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+')
     if re.fullmatch(regex, spacelessEmail):
@@ -111,7 +128,6 @@ async def geo_distance(lon1, lat1, lon2, lat2):
         Return: la distancia en kilometros (float)
     """
     from math import radians, cos, sin, asin, sqrt
-
     # convertir decimales a radianes
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
 
@@ -121,7 +137,239 @@ async def geo_distance(lon1, lat1, lon2, lat2):
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     c = 2 * asin(sqrt(a))
     r = 6371  # Radio de la tierra en kilometros
-    return c * r
+    km = c * r
+    return round(km, 1)
+
+
+def emailInvoice(NombreArt: str, Img: str, IDFac, Precio, Ship, Disc, Total, Name, Desc):
+    html = F"""
+<!DOCTYPE html>
+<html>
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<style type="text/css">
+
+/* RESET STYLES */
+
+/* iOS BLUE LINKS *
+
+/* MEDIA QUERIES */
+
+/* ANDROID CENTER FIX */
+
+</style>
+</head>
+<body style="margin: 0 !important; padding: 0 !important; background-color: #eeeeee;" bgcolor="#eeeeee">
+
+<!-- HIDDEN PREHEADER TEXT -->
+<div style="display: none; font-size: 1px; color: #fefefe; line-height: 1px; font-family: Open Sans, Helvetica, Arial, sans-serif; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+ASTABOT ES EL MEJOR BOT DEL MUNDO !
+</div>
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td align="center" style="background-color: #eeeeee;" bgcolor="#eeeeee">
+        <!--[if (gte mso 9)|(IE)]>
+        <table align="center" border="0" cellspacing="0" cellpadding="0" width="600">
+        <tr>
+        <td align="center" valign="top" width="600">
+        <![endif]-->
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+            <tr>
+                <td align="center" valign="top" style="font-size:0; padding: 35px;" bgcolor="#3bb7ff">        
+                <div style="display:inline-block; max-width:50%; min-width:100px; vertical-align:top; width:100%;">
+                    <table align="left" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:300px;">
+                        <tr>
+                            <td align="left" valign="top" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 36px; font-weight: 800; line-height: 48px;" class="mobile-center">
+                                <h1 style="font-size: 36px; font-weight: 800; margin: 0; color: #ffffff;"></h1>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div style="display:inline-block; max-width:50%; min-width:100px; vertical-align:top; width:100%;" class="mobile-hide">
+                    <table align="left" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:300px;">
+                        <tr>
+                           
+                        </tr>
+                    </table>
+                </div>
+                <!--[if (gte mso 9)|(IE)]>
+                </td>
+                </tr>
+                </table>
+                <![endif]-->
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 35px 35px 20px 35px; background-color: #ffffff;" bgcolor="#ffffff">
+                <!--[if (gte mso 9)|(IE)]>
+                <table align="center" border="0" cellspacing="0" cellpadding="0" width="600">
+                <tr>
+                <td align="center" valign="top" width="600">
+                <![endif]-->
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+                    <tr>
+                        <td align="center" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding-top: 25px;">
+                             <h3 style="font-size: 20px; font-weight: 800; line-height: 36px; color: #333333; margin: 0;">
+                               Parece que Alguien Estará Muy Contento con su Nuevo: """ + NombreArt + """
+                            </h3>
+                            <img src="  """ + Img + """  " width="200" height="160" style="display: block; border: 0px;" /><br><!-- insertar img-->
+                            <h2 style="font-size: 30px; font-weight: 800; line-height: 36px; color: #333333; margin: 0;">
+                               Gracias Por Su Compra """ + Name + """
+                            </h2>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding-top: 10px;">
+                            <p style="font-size: 16px; font-weight: 400; line-height: 24px; color: #777777;">
+                               Descripción del Articulo: """ + Desc + """
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left" style="padding-top: 20px;">
+                            <table cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td width="75%" align="left" bgcolor="#eeeeee" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 800; line-height: 24px; padding: 10px;">
+                                        FACTURA 
+                                    </td>
+                                    <td width="25%" align="left" bgcolor="#eeeeee" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 800; line-height: 24px; padding: 10px;">
+                                       COD# """ + IDFac + """
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td width="75%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 15px 10px 5px 10px;">
+                                        Articulo
+                                    </td>
+                                    <td width="25%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 15px 10px 5px 10px;">
+                                       USD$ """ + Precio + """
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td width="75%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 5px 10px;">
+                                        Envío
+                                    </td>
+                                    <td width="25%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 5px 10px;">
+                                        USD$ """ + Ship + """
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td width="75%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 5px 10px;">
+                                       Descuento %10
+                                    </td>
+                                    <td width="25%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding: 5px 10px;">
+                                        USD$ """ + Disc + """
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left" style="padding-top: 20px;">
+                            <table cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td width="75%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 800; line-height: 24px; padding: 10px; border-top: 3px solid #217aad; border-bottom: 3px solid #217aad;">
+                                        TOTAL
+                                    </td>
+                                    <td width="25%" align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 800; line-height: 24px; padding: 10px; border-top: 3px solid #217aad; border-bottom: 3px solid #217aad;">
+                                        USD$ """ + Total + """
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <!--[if (gte mso 9)|(IE)]>
+                </td>
+                </tr>
+                </table>
+                <![endif]-->
+                </td>
+            </tr>
+             <tr>
+                
+            </tr>
+            <tr>
+                <td align="center" style=" padding: 35px; background-color: #3bb7ff;" bgcolor="#3bb7ff">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+                    <tr>
+                        <td align="center" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 400; line-height: 24px; padding-top: 25px;">
+                            <h2 style="font-size: 24px; font-weight: 800; line-height: 30px; color: #ffffff; margin: 0;">
+                                ¡Recuerda Compartirnos!
+                            </h2>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="padding: 25px 0 15px 0;">
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td align="center" style="border-radius: 5px;" bgcolor="#3bb7ff">
+                                      <a href="https://web.telegram.org/k/#@AstaC_bot" target="_blank" style="font-size: 18px; font-family: Open Sans, Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 5px; background-color: #217aad; padding: 15px 30px; border: 1px solid #3bb7ff; display: block;">Mugiwara Bot</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+     
+                </td>
+            </tr>
+            <tr>
+                <td align="center" style="padding: 35px; background-color: #ffffff;" bgcolor="#ffffff">
+
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;">
+                    <tr>
+                        <td align="center">
+                            <img src="https://www.nicepng.com/png/full/781-7818059_monkey-d-luffy-one-piece-luffy-logo.png" width="47" height="47" style="display: block; border: 0px;"/>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="center" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 24px; padding: 5px 0 10px 0;">
+                            <p style="font-size: 14px; font-weight: 800; line-height: 18px; color: #333333;">
+                              <br>
+                               EL ONE PIECE ES REAL
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td align="left" style="font-family: Open Sans, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 24px;">
+                            <p style="font-size: 14px; font-weight: 400; line-height: 20px; color: #777777;">
+                               Recomendamos encarecidamente que veas One Piece Para que le llegues al flow <a href="https://www3.animeflv.to/ver/one-piece-tv-1" target="_blank" style="color: #777777;">Ver One Piece </a>.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+      
+                </td>
+            </tr>
+        </table>
+      
+        </td>
+    </tr>
+</table>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td bgcolor="#ffffff" align="center">
+    
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;" >
+                    <tr>
+                        <td bgcolor="#ffffff" align="center" style="padding: 30px 30px 30px 30px; color: #666666; font-family: Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 400; line-height: 18px;" >
+                            <p style="margin: 0;">Este disparate fue hecho por alguien con mucho café en la cabeza, leer con discreción <a href="https://medlineplus.gov/spanish/caffeine.html" style="color: #5db3ec;">Tomás porfa, dejenos dormir xd</a></p>
+                        </td>
+                    </tr>
+                </table>
+
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+    return html
 
 
 def CrearCuadro(Vercode: str):
@@ -244,7 +492,7 @@ def CrearCuadro(Vercode: str):
             </tr>
             </table>
             <![endif]-->
-        </td>
+        </td> 
     </tr>
     <!-- COPY BLOCK -->
     <tr>
@@ -309,33 +557,70 @@ def CrearCuadro(Vercode: str):
     return msg
 
 
-async def sendmail(to: str, subject: str, msg, msg2):
+# async def sendmail(to: str, subject: str, msg, msg2):
+#     user = ENV_VARs.email
+#     passW = ENV_VARs.passw
+#
+#     msg = "\r\n".join([
+#                           f"From: {user}",
+#                           f"To: {to}",
+#                           f"Subject: {subject}",
+#                           ""
+#                       ] + msg).encode('utf-8')
+#
+#     with smtplib.SMTP('smtp.gmail.com:587') as server:
+#         msg
+#         server.ehlo()
+#         server.starttls()
+#         server.login(user, passW)
+#         server.sendmail(user, to, msg)
+#
+#     return
+
+
+async def Createinvoice(to: str, Lista):
+    """
+    :param to: param to mail reciever
+    :param msg2: message on html formalt
+    :return: retuns email send
+    """
+
+    message = MIMEMultipart("alternative")
     user = ENV_VARs.email
     passW = ENV_VARs.passw
 
-    msg = "\r\n".join([
-                          f"From: {user}",
-                          f"To: {to}",
-                          f"Subject: {subject}",
-                          ""
-                      ] + msg).encode('utf-8')
+    message["Subject"] = "RECIBO DE COMPRA"
+    message["From"] = user
+    message["To"] = to
 
-    with smtplib.SMTP('smtp.gmail.com:587') as server:
-        msg
-        server.ehlo()
-        server.starttls()
+    text = """\
+    Gracias por Suscribirte a Astabot,
+    Este Correo no pretende ser respondido"""
+
+    for elementos in Lista:
+        html = emailInvoice(elementos[0], elementos[1], str(elementos[2]), str(elementos[3]), str(elementos[4]),
+                            str(elementos[5]), str(elementos[6]), elementos[7], elementos[8])
+        # NombreArt: , Img: ,          IDFac: ,  Precio: ,     Ship: ,     Disc: ,       Total:
+    # html = msg2
+    part1 = MIMEText(text, "plain")
+    part2 = MIMEText(html, "html")
+    message.attach(part1)
+    message.attach(part2)
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
         server.login(user, passW)
-        server.sendmail(user, to, msg)
 
-    return
+        server.sendmail(
+            user, to, message.as_string()
+        )
 
 
 async def sendHtmlMail(to: str, msg2: str):
     """
-
-    :param to:
-    :param msg2:
-    :return:
+    :param to: param to mail reciever
+    :param msg2: message on html formalt
+    :return: retuns email send
     """
 
     message = MIMEMultipart("alternative")
@@ -368,47 +653,19 @@ async def sendHtmlMail(to: str, msg2: str):
 
 
 async def randomVercode():
-    # With combination of lower and upper case
+    """
+    :return: creates random comfirmation code
+    """
     result_str = ''.join(random.choice(string.ascii_letters) for i in range(5))
-    # print random string
     print(result_str)
     return result_str
 
 
-async def edit_message(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str,
-                       reply_markup: InlineKeyboardMarkup = None, msg_content: telegram.Message = None):
-    query = update.callback_query
-    parse = 'markdown'
-
-    if query:
-        await query.answer()
-        if reply_markup:
-            msg = await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode=parse)
-        else:
-            msg = await query.edit_message_text(text=text, parse_mode=parse)
-    elif msg_content:
-        if reply_markup:
-            msg = await context.bot.edit_message_text(chat_id=msg_content.chat_id,
-                                                      message_id=msg_content.message_id,
-                                                      text=text,
-                                                      reply_markup=reply_markup,
-                                                      parse_mode=parse)
-        else:
-            msg = await context.bot.edit_message_text(chat_id=msg_content.chat_id,
-                                                      message_id=msg_content.message_id,
-                                                      text=text,
-                                                      parse_mode=parse)
-    else:
-        if reply_markup:
-            msg = await update.message.reply_text(text=text, reply_markup=reply_markup,
-                                                  parse_mode=parse)
-        else:
-            msg = await update.message.reply_text(text=text,
-                                                  parse_mode=parse)
-
-    return msg
-
 async def num_valid(num):
+    """
+    :param num: RECIEVES NUMBER TO SEE IF NUMBER
+    :return:
+    """
     if num <= 0:
         return "ERROR: EL NUMERO DEBE SER MAYOR A CERO"
     else:

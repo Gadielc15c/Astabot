@@ -3,6 +3,9 @@ import mysql.connector
 from mysql.connector import errorcode
 
 def open_connection():
+    """
+    :return: STATE OF CONNECTION
+    """
     mydb, cursor = None, None
     try:
         mydb = mysql.connector.connect(
@@ -22,8 +25,12 @@ def open_connection():
 
     return mydb, cursor
 
-#ejecuta delete
+
 def execute_sql(sql_string):
+    """
+    :param sql_string: GETS STRING TO PERFOM SELECT, UPDATE OR DELETE
+    :return: RETURNS NOTHING
+    """
     mydb, cursor = open_connection()
     cursor.execute(sql_string)
     mydb.commit()
@@ -32,6 +39,10 @@ def execute_sql(sql_string):
 
 
 def execute_select(sql_select):
+    """
+    :param sql_select: GETS STRING TO PERFORM INSERTS
+    :return:
+    """
     mydb, cursor = open_connection()
     cursor.execute(sql_select)
     list_ = cursor.fetchall()
