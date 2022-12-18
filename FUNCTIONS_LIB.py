@@ -409,11 +409,20 @@ async def edit_message(update: Update, context: ContextTypes.DEFAULT_TYPE, text:
     return msg
 
 async def num_valid(num):
-    if num<=0:
+    if num <= 0:
         return "ERROR: EL NUMERO DEBE SER MAYOR A CERO"
     else:
         return "TRUE"
+
+
 async def ValidateUrl(url):
+    """
+    This function is in charge of validating if a text string is a url and if it is an image.
+    param: url: Link of image.
+    return: resp (bool,string)
+    """
+    format = [".jpg", ".png", ".jpeg", ".jpge", ".tiff"]
+
     regex = re.compile(
         r'^(?:http|ftp)s?://'  # http:// or https://
         r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
@@ -421,5 +430,9 @@ async def ValidateUrl(url):
         r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
         r'(?::\d+)?'  # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-    resp=re.match(regex,url) is not None
+
+    if any(x in url for x in format):
+        resp = re.match(regex, url) is not None
+    else:
+        resp = "ERROR: El link que introduciste no esta dentro de los formatos aceptados, intentalo nuevamente."
     return resp
