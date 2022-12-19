@@ -45,7 +45,7 @@ COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, \
     STOCK_PRODUCT, U_NAME, U_STOCK, U_CATEGORY, U_DESCRIPTION, \
     U_PRICE, U_IMG, DETALLE, TEMP_COMPRA, ADD_PRODUCTS, TEMP_PAGO, I_PRICE, \
-    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,INVENTARY,STATISTICS,SEGMENTATION = range(36)
+    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,INVENTARY,STATISTICS,SEGMENTATION,VIEW_HIS,BUY_SUG,DETAIL_SUG = range(39)
 
 # --------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
@@ -206,15 +206,15 @@ async def descripcion(update: Update, context: CallbackContext):
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
         keyboard = [
             [
-                InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
-                InlineKeyboardButton("Ver Detalles", callback_data=str(SHIPPING_LESS))
+                InlineKeyboardButton("Comprar", callback_data=str(BUY_SUG)),
+                InlineKeyboardButton("Ver Detalles", callback_data=str(DETAIL_SUG))
             ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=f'🤖ID ARTICULO: {detalle[0]}\n',
                                        reply_markup=reply_markup)
-        return START_ROUTES
+    return STORE_START
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -587,9 +587,8 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
     login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
-    context.user_data[user_id]=login[0][0]
     if login:
-
+        context.user_data[user_id] = login[0][0]
         for estado in login:
             variable = estado[4]
         if variable == "1":
@@ -617,7 +616,7 @@ async def MenuUser(context, update):
         ],
 
         [
-            InlineKeyboardButton("Historico de Pedidos", callback_data=str(SHIPPING_LESS)),
+            InlineKeyboardButton("Historico de Pedidos", callback_data=str(VIEW_HIS)),
 
         ],
 
@@ -795,9 +794,11 @@ def main() -> None:
             STORE_START: [
                 CallbackQueryHandler(Compra, pattern="^" + str(COMPRA) + "$"),
                 CallbackQueryHandler(Sugerencia, pattern="^" + str(SUGGESTION) + "$"),
-                CallbackQueryHandler(ViewHistory, pattern="^" + str(SHIPPING_LESS) + "$"),
+                CallbackQueryHandler(ViewHistory, pattern="^" + str(VIEW_HIS) + "$"),
                 CallbackQueryHandler(descripcion, pattern="^" + str(DETALLE) + "$"),
-                CallbackQueryHandler(menuLoader, pattern="^" + str(TEMP_MENU) + "$")
+                CallbackQueryHandler(menuLoader, pattern="^" + str(TEMP_MENU) + "$"),
+                CallbackQueryHandler(storeStart, pattern="^" + str(BUY_SUG) + "$"),
+                CallbackQueryHandler(descripcion, pattern="^" + str(DETAIL_SUG) + "$"),
             ],
             PAYMENTS_START: [
                 CallbackQueryHandler(compra_sin_envio, pattern="^" + str(TEMP_PAGO) + "$"),
