@@ -5,7 +5,7 @@ import DB_CONN
 import ENV_VARs
 import ENV_VARs as TOKEN
 from telegram import __version__ as TG_VER, ReplyKeyboardRemove, ForceReply, ReplyKeyboardMarkup, KeyboardButton, \
-    WebAppInfo, LabeledPrice
+    WebAppInfo, LabeledPrice, ShippingOption
 import FUNCTIONS_LIB
 
 try:
@@ -37,7 +37,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 START_ROUTES = range(1)
-
 STORE_START, DETALLE, UPDATE_PRODUCTS, PAYMENTS_START, \
     ADMIN_OPTIONS, TEMP_MENU, SHIPPING, TEMP_LOCATION, TEMP_SHIPPER = range(9)
 
@@ -46,7 +45,9 @@ COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     LOGIN_PASS, LOGIN_CONFIRM, SIGNUP_ROUT, PRODUCT, PRICE_PRODUCT, \
     STOCK_PRODUCT, U_NAME, U_STOCK, U_CATEGORY, U_DESCRIPTION, \
     U_PRICE, U_IMG, DETALLE, TEMP_COMPRA, ADD_PRODUCTS, TEMP_PAGO, I_PRICE, \
-    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK,SUGGESTION,INVENTARY,STATISTICS,SEGMENTATION,VIEW_HIS,BUY_SUG,DETAIL_SUG = range(39)
+    I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK, SUGGESTION, INVENTARY, \
+    STATISTICS, SEGMENTATION, VIEW_HIS, BUY_SUG, DETAIL_SUG, TEMP_USERNAME, TEMP_EMAIL, TEMP_PASSw, TEMP_COMFIRM = range(
+    43)
 
 # --------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
@@ -58,7 +59,7 @@ ver_code = "Vercode"
 # VARS FOR LOGIN
 username_login = "login_username"
 username_pass = "login_pass"
-user_id="0"
+user_id = "0"
 
 # VARS FOR PRODUCT HANDLE
 productud = "product_id"
@@ -124,12 +125,11 @@ async def start_over(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def Compra(update: Update, context: CallbackContext) -> int:
     DATA = await FUNCTIONS_LIB.return_msg(update)
     a = DB_CONN.execute_select('SELECT * FROM products WHERE stock > 0')
-    table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS','CANTIDAD'])
+    table = pt.PrettyTable(['PRODUCTOS', 'CODIGOS'])
     table.align['PRODUCTOS'] = 'l'
     table.align['CODIGOS'] = 'r'
-    table.align['CANTIDAD'] = 'r'
     for productos in a:
-        table.add_row([productos[1], f'{productos[0]}',f'{productos[5]}'])
+        table.add_row([productos[1], f'{productos[0]}'])
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Nuestros Productos Actuales son: ")
 
@@ -137,7 +137,7 @@ async def Compra(update: Update, context: CallbackContext) -> int:
         chat_id=update.effective_chat.id,
         text=f'<pre>{table}</pre>',
         parse_mode=telegram.constants.ParseMode.HTML)
-    #print(variable)
+    # print(variable)
     if variable == "1":
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -168,21 +168,27 @@ async def detallador(update: Update, context: CallbackContext):
         context.user_data["TEMP_PRODid"] = DATA
         if productud:
             for detalle in productud:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
-                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
-                keyboard = [
-                    [
-                        InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
-                        InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
-                    ],
+                if detalle[5] != 0:
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
+                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=detalle[3])
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=f'Precio: {detalle[2]}US$')
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
+                            InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
+                        ],
 
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await context.bot.send_message(chat_id=update.effective_chat.id,
-                                               text=f'🤖ID ARTICULO: {detalle[0]}\n',
-                                               reply_markup=reply_markup)
-                return STORE_START
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                   text=f'🤖ID ARTICULO: {detalle[0]}\n',
+                                                   reply_markup=reply_markup)
+                    return STORE_START
+
+                else:
+                    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                                   text=f"ESE ARTICULO SE HA AGOTADO Y NO ESTA DISPONIBLE /Tienda Para Volver a la seleccion o\n"
+                                                        f"/Menu para Volver al menu de usuario")
         else:
             await context.bot.send_photo(chat_id=update.effective_chat.id,
                                          photo="https://i.postimg.cc/pXXcy9rS/5d055c32-1a19-452e-aaae-92276049e27e.jpg")
@@ -195,13 +201,24 @@ async def detallador(update: Update, context: CallbackContext):
         return await compraLoader(update, context)
 
 
+async def Sugerencia(update: Update, context: CallbackContext):
+    suggestion = DB_CONN.execute_select(
+        f'SELECT p.idproducts FROM purchase pur INNER JOIN  products p  ON pur.product=p.idproducts INNER JOIN  user u ON pur.user=u.iduser  WHERE u.iduser="{context.user_data[user_id]}" GROUP BY p.nameproducts ORDER BY count(p.nameproducts)  desc LIMIT 1 ;')
+    if suggestion:
+        context.user_data[productud] = suggestion[0][0]
+
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="A continuacion te mostraré el producto que te recomiendo, espero que te guste😁.")
+    await descripcion(update, context)
+
+
 async def compraLoader(update: Update, context: CallbackContext):
     await  Compra(update, context)
 
 
 async def descripcion(update: Update, context: CallbackContext):
     id = context.user_data[productud]
-    context.user_data["TEMP_PRODid"]=id
+    context.user_data["TEMP_PRODid"] = id
     product = DB_CONN.execute_select(f"SELECT * FROM products where idproducts= '{id}'")
     for detalle in product:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f'ARTICULO: {detalle[1]}')
@@ -226,9 +243,10 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await  query.answer(f'Entendido {query.data} Crearemos tu cuenta')
     if query.data == str(BUTTON_HANDLER):
         await query.edit_message_text(f'BIEN CREEEMOS SU CUENTA')
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN NOMBRE DE USUARIO\n ')
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='PORFA INGRESE UN NOMBRE DE USUARIO\n /Volver para volvera empezar')
         # await singUp(update, context)
-    return TEMP_USER
+    return TEMP_USERNAME
 
 
 async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -237,12 +255,13 @@ async def singUp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if status:
         context.user_data[username_var] = Username
         await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREO\n')
-        return TEMP_MAIL
+        return TEMP_EMAIL
 
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text=msg)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Inserte El Nombre De Usuario")
-        return TEMP_USER
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Inserte El Nombre De Usuario\n /Volver para volvera empezar")
+        return TEMP_USERNAME
 
 
 async def emailread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -250,12 +269,13 @@ async def emailread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     emailVer = await FUNCTIONS_LIB.emailValid(DATA)
     if emailVer:
         context.user_data[email_var] = DATA
-        await context.bot.send_message(chat_id=update.effective_chat.id, text='Porfavor Inserte una Contraseña\n')
-        return TEMP_PASS
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text='Porfavor Inserte una Contraseña\n /Volver para volvera empezar')
+        return TEMP_PASSw
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text='⚠️CORREO INVALIDO⚠️\n ')
         await context.bot.send_message(chat_id=update.effective_chat.id, text='PORFA INGRESE UN CORREO VÁLIDO\n ')
-        return TEMP_MAIL
+        return TEMP_EMAIL
 
 
 async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -274,7 +294,7 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                                             ' ENVIAMOS UN CORREO A TU EMAIL PARA QUE VERIFIQUES TU CUENTA \n AVECES EL CORREO PUEDE APARECER EN SPAM👍🏿')
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='DIGITE SU NUMERO DE CONFIRM \n')
-        return EMAIL_CONFIRM
+        return TEMP_COMFIRM
 
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
@@ -282,7 +302,7 @@ async def passreadl(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='POR FAVOR INGRESE UNA CONTRASEÑA VÁLIDA ESTA DEBE SER MAYOR A 6 DIGITOS '
                                             'y TENER ALMENOS UNA LETRA MAYUSCULA,UN NUMERO Y UN SIMBOLO ESPECIAL\n ')
-        return TEMP_PASS
+        return TEMP_PASSw
 
 
 async def emailConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -298,7 +318,7 @@ async def emailConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='EL CODIGO NO HA SIDO VERIFICADO CORRECTAMENTE, PORFAVOR VUELVA A '
                                             'INTENTARLO\n')
-        return EMAIL_CONFIRM
+        return TEMP_COMFIRM
 
 
 async def Login(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -514,7 +534,7 @@ async def PriceUpdate(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        text='WAOS...PRECIO ACTUALIZADO!!')
         return await Menu(context, update)
     else:
-       # print("Estoy en el else de precios")
+        # print("Estoy en el else de precios")
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text=msg)
         return U_PRICE
@@ -592,7 +612,7 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
     login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
-    context.user_data[user_id]=login[0][0]
+    context.user_data[user_id] = login[0][0]
     if login:
         context.user_data[user_id] = login[0][0]
         for estado in login:
@@ -636,8 +656,8 @@ async def MenuUser(context, update):
 
 
 async def ViewHistory(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query=f'SELECT p.nameproducts Producto,pur.discount Descuento ,pur.total Total FROM purchase pur INNER JOIN products p  ON pur.product=p.idproducts INNER JOIN user u ON pur.user=u.iduser where pur.user="{context.user_data[user_id]}"'
-    result=DB_CONN.execute_select(query)
+    query = f'SELECT p.nameproducts Producto,pur.discount Descuento ,pur.total Total FROM purchase pur INNER JOIN products p  ON pur.product=p.idproducts INNER JOIN user u ON pur.user=u.iduser where pur.user="{context.user_data[user_id]}"'
+    result = DB_CONN.execute_select(query)
     if result:
         table = pt.PrettyTable(['PRODUCTO', 'DESCUENTO', 'TOTAL'])
         table.align['PRODUCTO'] = 'l'
@@ -646,14 +666,15 @@ async def ViewHistory(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for fila in result:
             table.add_row([fila[0], f'{fila[1]}', f'{fila[2]}'])
 
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="A CONTINUACION SE MUESTRA SU HISTORIAL DE PEDIDOS")
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="A CONTINUACION SE MUESTRA SU HISTORIAL DE PEDIDOS")
 
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f'<pre>{table}</pre>',
             parse_mode=telegram.constants.ParseMode.HTML)
         keyboard = [
-           [
+            [
                 InlineKeyboardButton("VOLVER AL MENU", callback_data=str(TEMP_MENU))
             ]
         ]
@@ -665,16 +686,15 @@ async def ViewHistory(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id,
                                        text='🤖Bro...estas bien?, No tienes ningun pedido registrado, que buscas aqui??')
-        await MenuUser(update,context)
-
+        await MenuUser(update, context)
 
 
 async def menuLoader(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if variable=="4":
+    if variable == "4":
         await Menu(context, update)
 
     else:
-        await MenuUser(context,update)
+        await MenuUser(context, update)
 
 
 async def Menu(context, update):
@@ -853,6 +873,8 @@ async def compra_con_envio(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         for user in select2:
             for lastInvoice in select3:
                 lastId = lastInvoice[0] + 1
+                context.user_data["Linvoice"] = lastId
+
                 context.user_data["emailInvoice"] = user[2]
                 chat_id = context.user_data["ChatID"]
                 title = prods[1]
@@ -947,70 +969,70 @@ def main() -> None:
                 CallbackQueryHandler(emailread, pattern="^" + str(SIGNUP) + "$"),
             ],
             TEMP_USER: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), singUp),
+                MessageHandler(filters.TEXT & (filters.COMMAND), singUp),
             ],
             TEMP_MAIL: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), emailread),
+                MessageHandler(filters.TEXT & (filters.COMMAND), emailread),
             ],
             TEMP_PASS: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), passreadl),
+                MessageHandler(filters.TEXT & (filters.COMMAND), passreadl),
             ],
             EMAIL_CONFIRM: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
+                MessageHandler(filters.TEXT & (filters.COMMAND), emailConfirm),
             ],
             LOGIN: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), Login),
+                MessageHandler(filters.TEXT & (filters.COMMAND), Login),
             ],
             LOGIN_PASS: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginPass),
+                MessageHandler(filters.TEXT & (filters.COMMAND), LoginPass),
             ],
             DETALLE: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), detallador),
+                MessageHandler(filters.TEXT & (filters.COMMAND), detallador),
             ],
             LOGIN_CONFIRM: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
+                MessageHandler(filters.TEXT & (filters.COMMAND), LoginConfirm),
             ],
             TEMP_COMPRA: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), storeStart),
+                MessageHandler(filters.TEXT & (filters.COMMAND), storeStart),
             ],
             PRODUCT: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), SaveProductN),
+                MessageHandler(filters.TEXT & (filters.COMMAND), SaveProductN),
             ],
             STOCK_PRODUCT: [
-                # MessageHandler(filters.TEXT & (~filters.COMMAND), SaveStock),
+                # MessageHandler(filters.TEXT & (filters.COMMAND), SaveStock),
             ],
             U_NAME: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), UpdateNConfirm),
+                MessageHandler(filters.TEXT & (filters.COMMAND), UpdateNConfirm),
             ],
             U_DESCRIPTION: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
+                MessageHandler(filters.TEXT & (filters.COMMAND), DescriptionUpdate),
             ],
             U_STOCK: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), StockUpdate),
+                MessageHandler(filters.TEXT & (filters.COMMAND), StockUpdate),
             ],
             U_PRICE: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), PriceUpdate),
+                MessageHandler(filters.TEXT & (filters.COMMAND), PriceUpdate),
             ],
             U_CATEGORY: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), CategoryUpdate),
+                MessageHandler(filters.TEXT & (filters.COMMAND), CategoryUpdate),
             ],
             U_IMG: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), ImgUpdate),
+                MessageHandler(filters.TEXT & (filters.COMMAND), ImgUpdate),
             ],
             I_DESCRIPTION: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertDescription),
+                MessageHandler(filters.TEXT & (filters.COMMAND), InsertDescription),
             ],
             I_PRICE: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertPrice),
+                MessageHandler(filters.TEXT & (filters.COMMAND), InsertPrice),
             ],
             I_CATEGORY: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertCategory),
+                MessageHandler(filters.TEXT & (filters.COMMAND), InsertCategory),
             ],
             I_IMG: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertIMG),
+                MessageHandler(filters.TEXT & (filters.COMMAND), InsertIMG),
             ],
             I_STOCK: [
-                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertStock),
+                MessageHandler(filters.TEXT & (filters.COMMAND), InsertStock),
             ],
             TEMP_PAGO: [
                 MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
@@ -1018,12 +1040,29 @@ def main() -> None:
             TEMP_LOCATION: [
                 MessageHandler(filters.LOCATION, location)
             ],
+            TEMP_USERNAME: [
+
+                MessageHandler(filters.TEXT, singUp),
+            ],
+            TEMP_EMAIL: [
+                MessageHandler(filters.TEXT, emailread),
+            ],
+            TEMP_PASSw: [
+
+                MessageHandler(filters.TEXT, passreadl),
+            ],
+            TEMP_COMFIRM: [
+
+                MessageHandler(filters.TEXT, emailConfirm),
+            ]
 
         },
-
         fallbacks=[CommandHandler("start", start)],
     )
     # Optional handler if your product requires shipping
+    application.add_handler(CommandHandler("Tienda", compraLoader))
+    application.add_handler(CommandHandler("Menu", menuLoader))
+    application.add_handler(CommandHandler("Volver", start))
     application.add_handler(ShippingQueryHandler(envio_callback))
 
     application.add_handler(PreCheckoutQueryHandler(preCheckOut))
