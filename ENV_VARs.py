@@ -7,10 +7,16 @@ PAYMENT_PROVIDER_TOKEN = "284685063:TEST:M2FiNmU3ZTg0NzA1"
 CONN_TOKEN = "5797256473:AAEsrt-5LWYfYh_4YtuMEFfrZdNh7GjJhAA"  # Gadiel
 
 # SQL CONNETION
-mysql_host = "gadiel-bd.cdvr1eyvniyf.us-east-1.rds.amazonaws.com"
-mysql_user = "admin"
-mysql_password = "0$w8h#8#Q1N)N3B!3&3P"
-mysql_database = "astaBot"
+
+mysql_host = "us-cdbr-east-06.cleardb.net"
+mysql_user = "bdc6f41209149b"
+mysql_password = "0d9f1bc8"
+mysql_database = "heroku_6fa55fb2dfafa4b"
+
+#mysql_host = "bh8704.banahosting.com"
+#mysql_user = "wwkrfnkv_condularDB"
+#mysql_password = "PDRDpop11SB"
+#mysql_database = "wwkrfnkv_bot"
 
 # CORREOS
 email = "astabotia@gmail.com"

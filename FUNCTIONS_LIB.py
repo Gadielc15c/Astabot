@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 
 def getAdress(lat, lon):
+    """
+    :param lat: recieves latitude
+    :param lon: recieves longitud
+    :return: returns message with client address
+    """
     location = geolocator.reverse(str(lat) + "," + str(lon))
     address = location.raw['address']
     suburb = address.get('suburb', '')
@@ -44,6 +49,10 @@ def getAdress(lat, lon):
 
 
 def ProductsListProcessor(pList):
+    """
+    :param pList: Recieves list of products
+    :return: returns producto
+    """
     for productos in pList:
         msg = f"TENEMOS LOS SIGUIENTES PRODUCTOS \n" \
               f"- {productos[1]}"
@@ -83,6 +92,10 @@ def SpaceRemover(DATA):
 
 
 async def return_msg(update: Update):
+    """
+    :param update: gets update status
+    :return: returns message
+    """
     query = update.callback_query
     if query:
         await query.answer()
@@ -217,7 +230,7 @@ ASTABOT ES EL MEJOR BOT DEL MUNDO !
                              <h3 style="font-size: 20px; font-weight: 800; line-height: 36px; color: #333333; margin: 0;">
                                Parece que Alguien Estará Muy Contento con su Nuevo: """ + NombreArt + """
                             </h3>
-                            <img src="  """ + Img + """  " width="200" height="160" style="display: block; border: 0px;" /><br><!-- insertar img-->
+                            <img src="  """ + Img + """  "  style="display: block; border: 0px;" /><br><!-- insertar img-->
                             <h2 style="font-size: 30px; font-weight: 800; line-height: 36px; color: #333333; margin: 0;">
                                Gracias Por Su Compra """ + Name + """
                             </h2>

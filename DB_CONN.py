@@ -13,6 +13,7 @@ def open_connection():
             user=ENV_VARs.mysql_user,
             password=ENV_VARs.mysql_password,
             database=ENV_VARs.mysql_database
+          ,
         )
         cursor = mydb.cursor()
     except mysql.connector.Error as e:

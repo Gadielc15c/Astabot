@@ -46,8 +46,8 @@ COMPRA, BUTTON_HANDLER, END_ROUTES, SIGNUP, SHIPPING_LESS, FOUR, \
     STOCK_PRODUCT, U_NAME, U_STOCK, U_CATEGORY, U_DESCRIPTION, \
     U_PRICE, U_IMG, DETALLE, TEMP_COMPRA, ADD_PRODUCTS, TEMP_PAGO, I_PRICE, \
     I_DESCRIPTION, I_CATEGORY, I_IMG, I_STOCK, SUGGESTION, INVENTARY, \
-    STATISTICS, SEGMENTATION, VIEW_HIS, BUY_SUG, DETAIL_SUG, TEMP_USERNAME, TEMP_EMAIL, TEMP_PASSw, TEMP_COMFIRM = range(
-    43)
+    STATISTICS, SEGMENTATION, VIEW_HIS, BUY_SUG, DETAIL_SUG, TEMP_USERNAME,\
+    TEMP_EMAIL, TEMP_PASSw, TEMP_COMFIRM = range(43)
 
 # --------------------------------------------------#
 # VARS FOR SIGN UP ROUTS
@@ -83,11 +83,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             InlineKeyboardButton("INICIAR SESION 🔐", callback_data=str(LOGIN)),
             InlineKeyboardButton("SALIR 🏳️‍🌈", callback_data=str(END_ROUTES)),
         ],
-
         [
             InlineKeyboardButton("Crear Cuenta", callback_data=str(BUTTON_HANDLER)),
         ],
-
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await context.bot.send_message(chat_id=update.effective_chat.id, text='\n\t HOLAAAAA!!')
@@ -175,7 +173,6 @@ async def detallador(update: Update, context: CallbackContext):
                     keyboard = [
                         [
                             InlineKeyboardButton("Comprar", callback_data=str(PAYMENTS_START)),
-                            InlineKeyboardButton("Ver Detalles", callback_data=str(DETALLE))
                         ],
 
                     ]
@@ -227,7 +224,6 @@ async def descripcion(update: Update, context: CallbackContext):
         keyboard = [
             [
                 InlineKeyboardButton("Comprar", callback_data=str(BUY_SUG)),
-                InlineKeyboardButton("Ver Detalles", callback_data=str(DETAIL_SUG))
             ],
 
         ]
@@ -612,7 +608,6 @@ async def LoginConfirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data[username_pass] = DATA
     UserLogin = context.user_data[username_login]
     login = DB_CONN.execute_select(f'SELECT * FROM user WHERE username = "{UserLogin}" AND pass ="{DATA}"')
-    context.user_data[user_id] = login[0][0]
     if login:
         context.user_data[user_id] = login[0][0]
         for estado in login:
@@ -858,8 +853,8 @@ async def Ready(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     print(correo)
     lista = context.user_data["lista"]
     await FUNCTIONS_LIB.Createinvoice(correo, lista)
-    await update.message.reply_text("GRACIAS POR COMPRAR, Se ha Enviado un Correo Confirmando Tu Compra!")
-    # NombreArt: str, Img: str,IDFac:int,Precio:int,Ship:int,Disc:int,Total:int
+    await update.message.reply_text("GRACIAS POR COMPRAR, Se ha Enviado un Correo Confirmando Tu Compra! \start")
+    return LOGIN
 
 
 async def compra_con_envio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -874,7 +869,6 @@ async def compra_con_envio(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             for lastInvoice in select3:
                 lastId = lastInvoice[0] + 1
                 context.user_data["Linvoice"] = lastId
-
                 context.user_data["emailInvoice"] = user[2]
                 chat_id = context.user_data["ChatID"]
                 title = prods[1]
@@ -969,70 +963,70 @@ def main() -> None:
                 CallbackQueryHandler(emailread, pattern="^" + str(SIGNUP) + "$"),
             ],
             TEMP_USER: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), singUp),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), singUp),
             ],
             TEMP_MAIL: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), emailread),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), emailread),
             ],
             TEMP_PASS: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), passreadl),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), passreadl),
             ],
             EMAIL_CONFIRM: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), emailConfirm),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), emailConfirm),
             ],
             LOGIN: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), Login),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), Login),
             ],
             LOGIN_PASS: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), LoginPass),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginPass),
             ],
             DETALLE: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), detallador),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), detallador),
             ],
             LOGIN_CONFIRM: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), LoginConfirm),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), LoginConfirm),
             ],
             TEMP_COMPRA: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), storeStart),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), storeStart),
             ],
             PRODUCT: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), SaveProductN),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), SaveProductN),
             ],
             STOCK_PRODUCT: [
-                # MessageHandler(filters.TEXT & (filters.COMMAND), SaveStock),
+                # MessageHandler(filters.TEXT & (~filters.COMMAND), SaveStock),
             ],
             U_NAME: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), UpdateNConfirm),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), UpdateNConfirm),
             ],
             U_DESCRIPTION: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), DescriptionUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), DescriptionUpdate),
             ],
             U_STOCK: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), StockUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), StockUpdate),
             ],
             U_PRICE: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), PriceUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), PriceUpdate),
             ],
             U_CATEGORY: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), CategoryUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), CategoryUpdate),
             ],
             U_IMG: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), ImgUpdate),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), ImgUpdate),
             ],
             I_DESCRIPTION: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), InsertDescription),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertDescription),
             ],
             I_PRICE: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), InsertPrice),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertPrice),
             ],
             I_CATEGORY: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), InsertCategory),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertCategory),
             ],
             I_IMG: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), InsertIMG),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertIMG),
             ],
             I_STOCK: [
-                MessageHandler(filters.TEXT & (filters.COMMAND), InsertStock),
+                MessageHandler(filters.TEXT & (~filters.COMMAND), InsertStock),
             ],
             TEMP_PAGO: [
                 MessageHandler(filters.SUCCESSFUL_PAYMENT, Ready)
